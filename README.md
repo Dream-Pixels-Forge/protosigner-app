@@ -1,5 +1,6 @@
 <div align="center">
-<img width="1200" height="475" alt="ProtoSigner Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+
+<img width="1920" height="990" alt="Screenshot 2026-02-13 065607" src="https://github.com/user-attachments/assets/f9502d7c-eb93-4c15-8108-83dcc73cdc8b" />
 
 # ProtoSigner
 
@@ -16,6 +17,9 @@
 ## 🚀 Overview
 
 ProtoSigner is a high-fidelity, AI-powered visual UI builder that enables designers and developers to create React components through an intuitive interface combined with natural language prompts. Design, iterate, and export production-ready code—all in one place.
+
+<img width="1920" height="997" alt="Screenshot 2026-02-13 114309" src="https://github.com/user-attachments/assets/20925754-b58f-4d42-9d58-e76cae8ac59d" />
+
 
 ## ✨ Features
 
