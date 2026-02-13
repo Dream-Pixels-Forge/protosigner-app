@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #ffffff;
+  --color-primary-dark: #e2e2e2;
+  --color-accent: #525252;
+  --color-background-light: #ffffff;
+  --color-background-dark: #000000;
+  --color-canvas-dark: #030303;
+  --color-panel-dark: #0a0a0a;
+  
+  --font-family-sans: "Space Grotesk", sans-serif;
+  --font-family-display: "Space Grotesk", sans-serif;
+}

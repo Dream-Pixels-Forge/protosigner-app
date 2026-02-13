@@ -1,0 +1,8 @@
+
+{
+  "name": "ProtoSigner.",
+  "description": "A high-fidelity AI-powered UI builder allowing users to design React components with a visual interface and AI prompts.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
