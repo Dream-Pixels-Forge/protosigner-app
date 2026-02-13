@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { prompt, model = 'gemini-2.0-flash-exp' } = req.body;
+  const { prompt, model = 'gemini-2.5-flash-preview-0514' } = req.body;
 
   if (!prompt) {
     return res.status(400).json({ error: 'Prompt is required' });

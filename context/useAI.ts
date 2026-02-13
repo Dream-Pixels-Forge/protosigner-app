@@ -237,7 +237,7 @@ export const useAI = ({
                 const ai = new GoogleGenAI({ apiKey: googleApiKey });
                 // Correctly use generateContent to generate images with Nano Banana
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash-image', 
+                    model: 'gemini-2.5-flash-preview-0514', 
                     contents: { parts: [{ text: prompt }] },
                     config: {
                         imageConfig: { aspectRatio: "1:1" }
