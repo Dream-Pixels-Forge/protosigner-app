@@ -8,7 +8,7 @@
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Dream-Pixels-Forge/protosigner-app)
 
-[Live Demo](https://protosigner.vercel.app) •  • [Report Bug](https://github.com/Dream-Pixels-Forge/protosigner-app/issues)
+[Live Demo](https://protosigner-app.vercel.app) •  • [Report Bug](https://github.com/Dream-Pixels-Forge/protosigner-app/issues)
 
 </div>
 
