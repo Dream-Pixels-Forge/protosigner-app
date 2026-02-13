@@ -190,7 +190,6 @@ export const Canvas: React.FC = () => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onDragOver={handleDragOver}
-        onDragOver={handleDragOver}
         onDrop={handleDrop}
         style={{
             // Dynamic Grid Implementation
