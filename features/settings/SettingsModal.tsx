@@ -24,6 +24,32 @@ export const SettingsModal: React.FC = () => {
   const [newServerUrl, setNewServerUrl] = useState('');
   const [newServerName, setNewServerName] = useState('');
 
+  // Fetch Google models from API
+  React.useEffect(() => {
+    const fetchGoogleModels = async () => {
+      if (!googleApiKey || modelSubTab !== 'Google') return;
+      try {
+        const res = await fetch('/api/models');
+        if (res.ok) {
+          const data = await res.json();
+          const models = data.models?.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            provider: 'Google' as AIProvider,
+            status: 'connected',
+            latency: m.id.includes('flash') ? '120ms' : '245ms',
+            tags: m.id.includes('2.5') ? ['Latest'] : m.id.includes('flash') ? ['Fast'] : ['Pro'],
+            recommended: m.id.includes('2.5-flash')
+          })) || googleModels;
+          setGoogleModels(models);
+        }
+      } catch (e) {
+        console.error('Failed to fetch Google models', e);
+      }
+    };
+    fetchGoogleModels();
+  }, [googleApiKey, modelSubTab]);
+
   // Fetch Ollama models
   React.useEffect(() => {
     const fetchOllamaModels = async () => {
@@ -53,30 +79,29 @@ export const SettingsModal: React.FC = () => {
   // Fetch OpenRouter models
   React.useEffect(() => {
     const fetchOpenRouterModels = async () => {
-      if (!openRouterApiKey) return;
       try {
-        const res = await fetch('https://openrouter.ai/api/v1/models', {
-          headers: { 'Authorization': `Bearer ${openRouterApiKey}` }
-        });
+        const res = await fetch('/api/openrouter-models');
         if (res.ok) {
           const data = await res.json();
-          const models = data.data?.slice(0, 8).map((m: any) => ({
-            id: m.id,
-            name: m.name || m.id,
-            provider: 'OpenRouter' as AIProvider,
-            status: 'connected',
-            latency: 'Cloud',
-            tags: m.id.includes('claude') ? ['Coding'] : m.id.includes('gpt') ? ['Versatile'] : ['AI'],
-            recommended: m.id.includes('claude-3.5-sonnet')
-          })) || [];
-          setOpenRouterModels(models);
+          if (data.models && data.models.length > 0) {
+            const models = data.models.map((m: any) => ({
+              id: m.id,
+              name: m.name || m.id,
+              provider: 'OpenRouter' as AIProvider,
+              status: 'connected',
+              latency: m.pricing?.prompt ? 'Cloud' : 'Unknown',
+              tags: m.id.includes('claude') ? ['Coding'] : m.id.includes('gpt') ? ['Versatile'] : m.id.includes('gemini') ? ['Multimodal'] : ['AI'],
+              recommended: m.id.includes('claude-3.5-sonnet') || m.id.includes('gemini-2.0-flash-exp:free')
+            }));
+            setOpenRouterModels(models);
+          }
         }
       } catch (e) {
         console.error('Failed to fetch OpenRouter models', e);
       }
     };
     if (modelSubTab === 'OpenRouter') fetchOpenRouterModels();
-  }, [openRouterApiKey, modelSubTab]);
+  }, [modelSubTab]);
 
   // Sync sub-tab with active provider initially
   // FIXED: Moved useEffect BEFORE the conditional return to prevent Hook Error #310
@@ -98,13 +123,16 @@ export const SettingsModal: React.FC = () => {
       }
   };
 
+  const [googleModels, setGoogleModels] = useState<AIModel[]>([
+    { id: 'gemini-2.5-flash-preview-0514', name: 'Gemini 2.5 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Latest', 'Multimodal'], recommended: true },
+    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Fast', 'Multimodal'] },
+    { id: 'gemini-exp-1206', name: 'Gemini Exp 1206', provider: 'Google', status: 'connected', latency: '245ms', tags: ['Reasoning'] },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', status: 'connected', latency: '100ms', tags: ['Stable'] },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', status: 'connected', latency: '180ms', tags: ['Pro'] }
+  ]);
+
   const MODELS_DATA: Record<AIProvider, AIModel[]> = {
-    Google: [
-        { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Fast', 'Multimodal'], recommended: true },
-        { id: 'gemini-exp-1206', name: 'Gemini Exp 1206', provider: 'Google', status: 'connected', latency: '245ms', tags: ['Reasoning', 'Complex'] },
-        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', status: 'connected', latency: '100ms', tags: ['Legacy', 'Stable'] },
-        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', status: 'connected', latency: '180ms', tags: ['Advanced', 'Pro'] }
-    ],
+    Google: googleModels,
     OpenRouter: openRouterModels.length > 0 ? openRouterModels : [
         { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'OpenRouter', status: 'disconnected', latency: 'Medium', tags: ['Balanced', 'Coding'], recommended: true },
         { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus', provider: 'OpenRouter', status: 'disconnected', latency: 'Slow', tags: ['Top Tier', 'Reasoning'] },
@@ -239,7 +267,7 @@ export const SettingsModal: React.FC = () => {
                         ))}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
                         {MODELS_DATA[modelSubTab].map(model => (
                             <div 
                                 key={model.id}
