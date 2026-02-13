@@ -186,9 +186,9 @@ ProtoSigner uses Vercel Serverless Functions to keep API keys secure:
 
 See [SERVERLESS.md](./SERVERLESS.md) for detailed documentation.
 
-## 📄 License
+## Legal
 
-This project is licensed under the MIT License.
+- License: [Apache License 2.0](LICENSE)
 
 ## 🙏 Acknowledgments
 
