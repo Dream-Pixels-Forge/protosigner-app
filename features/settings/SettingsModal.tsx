@@ -18,6 +18,13 @@ export const SettingsModal: React.FC = () => {
   } = useEditor();
 
   const [modelSubTab, setModelSubTab] = useState<AIProvider>('Google');
+  const [googleModels, setGoogleModels] = useState<AIModel[]>([
+    { id: 'gemini-2.5-flash-preview-0514', name: 'Gemini 2.5 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Latest', 'Multimodal'], recommended: true },
+    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Fast', 'Multimodal'] },
+    { id: 'gemini-exp-1206', name: 'Gemini Exp 1206', provider: 'Google', status: 'connected', latency: '245ms', tags: ['Reasoning'] },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', status: 'connected', latency: '100ms', tags: ['Stable'] },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', status: 'connected', latency: '180ms', tags: ['Pro'] }
+  ]);
   const [ollamaModels, setOllamaModels] = useState<AIModel[]>([]);
   const [openRouterModels, setOpenRouterModels] = useState<AIModel[]>([]);
   
@@ -28,6 +35,9 @@ export const SettingsModal: React.FC = () => {
   React.useEffect(() => {
     const fetchGoogleModels = async () => {
       if (!googleApiKey || modelSubTab !== 'Google') return;
+      // Skip API call in development (serverless functions only work in production)
+      if (import.meta.env.DEV) return;
+      
       try {
         const res = await fetch('/api/models');
         if (res.ok) {
@@ -79,6 +89,9 @@ export const SettingsModal: React.FC = () => {
   // Fetch OpenRouter models
   React.useEffect(() => {
     const fetchOpenRouterModels = async () => {
+      // Skip API call in development (serverless functions only work in production)
+      if (import.meta.env.DEV) return;
+      
       try {
         const res = await fetch('/api/openrouter-models');
         if (res.ok) {
@@ -122,14 +135,6 @@ export const SettingsModal: React.FC = () => {
           setActiveModelProvider(provider);
       }
   };
-
-  const [googleModels, setGoogleModels] = useState<AIModel[]>([
-    { id: 'gemini-2.5-flash-preview-0514', name: 'Gemini 2.5 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Latest', 'Multimodal'], recommended: true },
-    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Fast', 'Multimodal'] },
-    { id: 'gemini-exp-1206', name: 'Gemini Exp 1206', provider: 'Google', status: 'connected', latency: '245ms', tags: ['Reasoning'] },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', status: 'connected', latency: '100ms', tags: ['Stable'] },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', status: 'connected', latency: '180ms', tags: ['Pro'] }
-  ]);
 
   const MODELS_DATA: Record<AIProvider, AIModel[]> = {
     Google: googleModels,

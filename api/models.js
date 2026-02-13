@@ -1,8 +1,12 @@
-import { GoogleGenerativeAI } from '@google/genai';
+const { GoogleGenerativeAI } = require('@google/genai');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(200).json({ models: [] });
   }
 
   try {
@@ -22,6 +26,6 @@ export default async function handler(req, res) {
     res.status(200).json({ models: formattedModels });
   } catch (error) {
     console.error('Failed to fetch models:', error);
-    res.status(500).json({ error: 'Failed to fetch models' });
+    res.status(200).json({ models: [] });
   }
-}
+};
