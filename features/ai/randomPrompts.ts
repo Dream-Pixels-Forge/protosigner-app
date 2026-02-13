@@ -3,40 +3,40 @@ import { ExpertMode } from '../../types';
 
 export const RANDOM_PROMPTS: Record<ExpertMode, string[]> = {
     'landing': [
-        "A dark-mode SaaS landing page for an AI crypto trading bot. Use neon purple and blue gradients, glassmorphism cards, and a 'bento grid' layout for features. Inspired by Linear.app and Dribbble dark mode trends.",
-        "A minimalist architecture firm portfolio. High contrast black and white, massive typography (120px+ headlines), overlapping images, and plenty of negative space. Behance 'Featured' style.",
-        "A vibrant Neo-Brutalist landing page for a Gen-Z fashion brand. Use clashing colors (Acid Green and Hot Pink), thick black borders, hard shadows, and marquee scrolling text.",
-        "A clean, eco-friendly landing page for a solar energy startup. Soft greens, earthy tones, rounded corners, and a split-screen hero section with a floating card effect.",
-        "A futuristic 'Space Tourism' booking site. Deep space blue background, star field patterns, thin white lines, and a centered hero section with a glowing 'Launch' button."
+        "Modern SaaS hero section with gradient background transitioning from deep blue to violet, glass-effect cards with subtle shadows, clean typography hierarchy.",
+        "Minimalist portfolio layout with bold typography, high contrast black and white, asymmetric image placement, generous negative space.",
+        "Vibrant brand landing page with bold colors, thick borders, strong shadows, energetic typography, clear call-to-action buttons.",
+        "Clean eco-friendly design with soft green tones, rounded corners, floating card elements, organic shapes, welcoming hero section.",
+        "Futuristic tech landing with dark background, glowing accents, thin geometric lines, centered hero layout, prominent action button."
     ],
     'full-stack': [
-        "A developer documentation site layout. Fixed left sidebar navigation, right-side table of contents, clean typography, code block styling, and a top navbar with search.",
-        "A CRM application shell. Collapsible sidebar, top header with user profile, breadcrumbs, and a main content area with a data table and filter bar.",
-        "A project management board layout (Kanban style). Horizontal scrolling columns, drag-and-drop card styling, user avatars, and tag pills. Vercel dashboard aesthetic.",
-        "A settings configuration page. Vertical tabs on the left, form inputs (switches, text fields) on the right, grouped into distinct sections with dividers."
+        "Documentation layout with fixed sidebar navigation, content area with code blocks, top search bar, clean typography, organized sections.",
+        "Application dashboard with collapsible sidebar, header with user profile, breadcrumb navigation, main content area with data table and filters.",
+        "Project board with horizontal columns, draggable task cards, user avatars, color-coded tags, clean modern aesthetic.",
+        "Settings page with vertical tab navigation, form sections with toggles and inputs, clear visual grouping, organized layout."
     ],
     'hud': [
-        "A tactical mech cockpit display. Central targeting reticle, peripheral health bars, ammo counters, and a radar in the bottom corner. Cyan and red color scheme. Monospace fonts.",
-        "A spaceship navigation terminal. Star map visualization placeholder, warp speed velocity bars, system status diagnostics (shield integrity, fuel). Dark background, orange FUI elements.",
-        "A cyberpunk hacker terminal. Cascading text logs, network node graph visualization, upload progress bars, and 'Access Denied' warning modals. Green on black CRT aesthetic.",
-        "A medical bio-scan overlay. Human anatomy wireframe placeholder, vital signs (heart rate wave), DNA sequence analysis. Clean white and blue medical UI."
+        "Tactical interface with central targeting display, peripheral status bars, corner radar element, monospace readouts, cyan and red accents.",
+        "Navigation console with star map visualization, velocity indicators, system diagnostics panel, dark background with amber highlights.",
+        "Terminal interface with scrolling data logs, network visualization, progress indicators, green phosphor on black aesthetic.",
+        "Medical scan overlay with anatomical wireframe, vital signs display, waveform graphs, clean white and blue color scheme."
     ],
     'dashboard': [
-        "A fintech crypto dashboard. Real-time price charts, portfolio balance in large font, recent transaction list, and a quick-buy widget. Dark mode with green/red indicators.",
-        "A social media analytics dashboard. Follower growth line charts, engagement heatmaps, top post cards, and demographic pie charts. Clean, colorful, Dribbble style.",
-        "A smart home control panel. Grid of tiles for lights (with sliders), temperature dial, security camera feed placeholders, and energy usage graph.",
-        "An e-commerce admin overview. Total sales counters, order status badges, inventory alerts, and a revenue map visualization."
+        "Financial dashboard with real-time charts, large balance display, transaction list, quick-action widget, dark theme with status colors.",
+        "Analytics panel with growth charts, engagement metrics, content performance cards, demographic visualizations, colorful modern design.",
+        "Smart home control with device tiles, temperature controls, camera feed grids, energy usage graphs, intuitive layout.",
+        "E-commerce admin with sales metrics, order status timeline, inventory alerts, revenue map, organized card layout."
     ],
     'os': [
-        "A macOS-inspired desktop interface. Top menu bar with clock, bottom floating dock with icons, and two floating windows (Finder and Calculator style) with blurred backgrounds.",
-        "A retro Windows 95 style desktop. Teal background, gray windows with blue title bars, bevelled buttons, and a bottom 'Start' taskbar.",
-        "A futuristic spatial computing OS. Floating translucent panes, eye-tracking cursor indicators, and 3D-effect depth layering."
+        "Desktop interface with translucent menu bar, floating dock with icons, overlapping windows with blur effects, smooth animations.",
+        "Retro desktop with teal background, gray windows with title bars, beveled buttons, taskbar with system tray.",
+        "Modern spatial interface with floating translucent panels, depth layering, smooth transitions, clean minimalist design."
     ],
     'mobile': [
-        "A food delivery app home screen. Top address selector, horizontal scroll categories, restaurant cards with hero images and rating badges, bottom navigation bar.",
-        "A fitness tracking app. Circular progress rings for daily goals, list of recent workouts, and a floating action button for 'New Activity'. Dark mode.",
-        "A dating app profile view. Full-screen card stack, overlay buttons for 'Like/Nope', bio section, and photo gallery indicators.",
-        "A mobile banking wallet. Credit card visualizer with tilt effect, transaction list, and quick transfer contacts."
+        "Food app home screen with location selector, horizontal category scroll, restaurant cards with images and ratings, bottom navigation.",
+        "Fitness app with circular progress rings, activity list with icons, floating action button, dark theme with accent colors.",
+        "Profile card interface with full-screen layout, action buttons, bio section, photo gallery indicators, swipe gestures.",
+        "Banking app with card display, transaction timeline, quick-send contacts, balance animation, secure modern design."
     ]
 };
 

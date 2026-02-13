@@ -349,9 +349,11 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               updated = updateElementRecursively(updated, tid, (el) => {
                 const currentLeft = parseFloat(String(el.style?.left || 0)) || 0;
                 const currentTop = parseFloat(String(el.style?.top || 0)) || 0;
+                const newLeft = currentLeft + dx;
+                const newTop = currentTop + dy;
                 return {
                     ...el,
-                    style: { ...el.style, left: currentLeft + dx, top: currentTop + dy }
+                    style: { ...el.style, left: newLeft, top: newTop }
                 };
               });
           });
@@ -384,35 +386,33 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const reorderElement = useCallback((dragId: string, targetId: string, position: 'before' | 'after' | 'inside') => {
       if (dragId === targetId) return;
 
-      // --- CIRCULAR DEPENDENCY CHECK ---
-      // Check if targetId is a descendant of dragId
-      const isDescendant = (parent: UIElement, target: string): boolean => {
-          if (!parent.children) return false;
-          return parent.children.some(child => child.id === target || isDescendant(child, target));
-      };
-
-      // Find the drag element object first to check its children
-      const findElement = (list: UIElement[], id: string): UIElement | null => {
-          for (const item of list) {
-              if (item.id === id) return item;
-              if (item.children) {
-                  const found = findElement(item.children, id);
-                  if (found) return found;
-              }
-          }
-          return null;
-      };
-
-      const dragElement = findElement(elements, dragId);
-      if (dragElement && isDescendant(dragElement, targetId)) {
-          console.warn("Cannot drop parent into child.");
-          return;
-      }
-      // ---------------------------------
-
       saveToHistory('Reorder Layer');
 
       setElements(prev => {
+          // --- CIRCULAR DEPENDENCY CHECK ---
+          const findElement = (list: UIElement[], id: string): UIElement | null => {
+              for (const item of list) {
+                  if (item.id === id) return item;
+                  if (item.children) {
+                      const found = findElement(item.children, id);
+                      if (found) return found;
+                  }
+              }
+              return null;
+          };
+
+          const isDescendant = (parent: UIElement, target: string): boolean => {
+              if (!parent.children) return false;
+              return parent.children.some(child => child.id === target || isDescendant(child, target));
+          };
+
+          const dragElement = findElement(prev, dragId);
+          if (dragElement && isDescendant(dragElement, targetId)) {
+              console.warn("Cannot drop parent into child.");
+              return prev;
+          }
+          // ---------------------------------
+
           let draggedElement: UIElement | null = null;
           const findAndRemove = (list: UIElement[]): UIElement[] => {
               const newList: UIElement[] = [];
@@ -465,7 +465,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
           return insert(elementsWithoutDrag);
       });
-  }, [saveToHistory, elements]);
+  }, [saveToHistory]);
 
   const addElement = useCallback((type: UIElement['type'], overrides?: Partial<Omit<UIElement, 'id'>>) => {
     saveToHistory(`Add ${type}`);

@@ -84,10 +84,9 @@ export const SelectableWrapper: React.FC<SelectableWrapperProps> = ({
     // Reset move flag on new interaction
     hasMovedRef.current = false;
 
-    // If not selected, select it first. We don't start drag immediately on unselected items to prevent accidental moves.
+    // If not selected, select it first
     if (!isSelected) {
         onSelect(id);
-        return;
     }
     
     // Disable dragging for flow children (flex items) unless it's a resize handle

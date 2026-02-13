@@ -1,5 +1,5 @@
 // Utility to call Vercel serverless functions
-export const callGeminiAPI = async (prompt: string, model = 'gemini-2.5-flash-preview-0514') => {
+export const callGeminiAPI = async (prompt: string, model = 'gemini-2.5-flash') => {
   const response = await fetch('/api/gemini', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

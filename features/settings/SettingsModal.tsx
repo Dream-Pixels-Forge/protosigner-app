@@ -19,11 +19,11 @@ export const SettingsModal: React.FC = () => {
 
   const [modelSubTab, setModelSubTab] = useState<AIProvider>('Google');
   const [googleModels, setGoogleModels] = useState<AIModel[]>([
-    { id: 'gemini-2.5-flash-preview-0514', name: 'Gemini 2.5 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Latest', 'Multimodal'], recommended: true },
-    { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Fast', 'Multimodal'] },
-    { id: 'gemini-exp-1206', name: 'Gemini Exp 1206', provider: 'Google', status: 'connected', latency: '245ms', tags: ['Reasoning'] },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', status: 'connected', latency: '100ms', tags: ['Stable'] },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', status: 'connected', latency: '180ms', tags: ['Pro'] }
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Latest', 'Stable'], recommended: true },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', status: 'connected', latency: '180ms', tags: ['Pro', 'Advanced'] },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', status: 'connected', latency: '100ms', tags: ['Fast'] },
+    { id: 'gemini-flash-latest', name: 'Gemini Flash Latest', provider: 'Google', status: 'connected', latency: '120ms', tags: ['Auto-Update'] },
+    { id: 'gemini-pro-latest', name: 'Gemini Pro Latest', provider: 'Google', status: 'connected', latency: '180ms', tags: ['Auto-Update'] }
   ]);
   const [ollamaModels, setOllamaModels] = useState<AIModel[]>([]);
   const [openRouterModels, setOpenRouterModels] = useState<AIModel[]>([]);
@@ -48,8 +48,8 @@ export const SettingsModal: React.FC = () => {
             provider: 'Google' as AIProvider,
             status: 'connected',
             latency: m.id.includes('flash') ? '120ms' : '245ms',
-            tags: m.id.includes('2.5') ? ['Latest'] : m.id.includes('flash') ? ['Fast'] : ['Pro'],
-            recommended: m.id.includes('2.5-flash')
+            tags: m.id.includes('2.5') ? ['Latest'] : m.id.includes('2.0') ? ['Fast'] : m.id.includes('latest') ? ['Auto-Update'] : ['Stable'],
+            recommended: m.id === 'gemini-2.5-flash'
           })) || googleModels;
           setGoogleModels(models);
         }
