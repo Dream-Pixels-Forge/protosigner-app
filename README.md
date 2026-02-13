@@ -6,9 +6,9 @@
 
 **AI-Powered UI Builder for React Components**
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/protosigner-app)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Dream-Pixels-Forge/protosigner-app)
 
-[Live Demo](https://protosigner.vercel.app) • [AI Studio](https://ai.studio/apps/drive/1r5iLntbls1XnGx0cXMzLkne8JUsIGcMr) • [Report Bug](https://github.com/yourusername/protosigner-app/issues)
+[Live Demo](https://protosigner.vercel.app) •  • [Report Bug](https://github.com/Dream-Pixels-Forge/protosigner-app/issues)
 
 </div>
 
@@ -55,7 +55,7 @@ ProtoSigner is a high-fidelity, AI-powered visual UI builder that enables design
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/protosigner-app.git
+   git clone https://github.com/Dream-Pixels-Forge/protosigner-app.git
    cd protosigner-app
    ```
 
@@ -92,7 +92,7 @@ npm run preview
 
 ### One-Click Deploy
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/protosigner-app)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Dream-Pixels-Forge/protosigner-app)
 
 ### Manual Deployment
 
@@ -202,9 +202,9 @@ This project is licensed under the MIT License.
 
 ## 📞 Support
 
-- 📧 Email: support@protosigner.com
+- 📧 Email: dream.pixels.forge@gmail.com
 - 💬 Discord: [Join our community](https://discord.gg/protosigner)
-- 🐛 Issues: [GitHub Issues](https://github.com/yourusername/protosigner-app/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/Dream-Pixels-Forge/protosigner-app/issues)
 
 ---
 
