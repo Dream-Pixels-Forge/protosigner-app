@@ -100,6 +100,7 @@ export const generateMinimalPrompt = (
   // More explicit JSON requirement
   let prompt = `You are a UI designer. Output ONLY valid JSON array. No explanations.\n`;
   prompt += `Output format: [{type,name,props,style,children}]\n`;
+  prompt += `IMPORTANT: Use camelCase for ALL CSS properties (backgroundColor, justifyContent, flexDirection, etc). Never use kebab-case (background-color, justify-content, flex-direction).\n`;
   prompt += `IMPORTANT: Output ONLY JSON. No text before or after.\n\n`;
   
   // Add template if specified

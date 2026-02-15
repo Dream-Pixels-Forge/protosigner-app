@@ -128,12 +128,13 @@ RULES FOR LOCAL MODEL:
         instruction += `
 
 ## STRICT VALIDATION RULES
-1. ALL numeric style values must be integers (NOT strings like '100px')
-2. ALL color values must be valid hex (#FFFFFF) or rgba() format
-3. Container elements MUST have: display, width, height
-4. Text elements MUST have: fontSize (number), color
-5. NO undefined or null values in output
-6. Element types MUST be one of: page, section, container, text, button, grid, rectangle, circle, box, frame, image
+1. ALL CSS properties MUST use camelCase (backgroundColor, justifyContent, flexDirection, alignItems). NEVER use kebab-case (background-color, justify-content, flex-direction).
+2. ALL numeric style values must be integers (NOT strings like '100px')
+3. ALL color values must be valid hex (#FFFFFF) or rgba() format
+4. Container elements MUST have: display, width, height
+5. Text elements MUST have: fontSize (number), color
+6. NO undefined or null values in output
+7. Element types MUST be one of: page, section, container, text, button, grid, rectangle, circle, box, frame, image
 `;
 
         // 9. Output Schema Reminder - EXACT TYPE MATCH
