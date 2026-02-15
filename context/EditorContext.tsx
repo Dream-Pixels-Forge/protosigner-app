@@ -11,7 +11,7 @@ import {
     deleteFromList 
 } from './utils';
 import { useAI } from './useAI';
-import { SpectralAgent } from '../features/ai/SpectralAgent'; // Import Agent
+import { useSpectralAgent } from '../features/ai/SpectralAgent'; // Import Agent Hook
 
 interface HistorySnapshot {
   id: string;
@@ -84,6 +84,21 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [ollamaServerUrl, setOllamaServerUrl] = useState('http://localhost:11434');
 
   const [mcpStatus, setMcpStatus] = useState<MCPStatus>('disconnected');
+  
+  // --- PromptBar State ---
+  const [isPromptBarVisible, setIsPromptBarVisible] = useState(true);
+  
+  const togglePromptBar = useCallback(() => {
+    setIsPromptBarVisible(prev => !prev);
+  }, []);
+  
+  const showPromptBar = useCallback(() => {
+    setIsPromptBarVisible(true);
+  }, []);
+  
+  const hidePromptBar = useCallback(() => {
+    setIsPromptBarVisible(false);
+  }, []);
   
   // --- Canvas State ---
   const [zoom, setZoomState] = useState(0.8);
@@ -709,6 +724,14 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo, selectedId, deleteElement, fitToPage, fitToSelection, zoomIn, zoomOut, fitToView, duplicateSelection, moveSelection]);
 
+  // Initialize Spectral Agent
+  useSpectralAgent({
+    environmentMode,
+    activeModelProvider,
+    setActiveModelProvider,
+    setActiveModelId
+  });
+
   return (
     <EditorContext.Provider value={{
       projectName, setProjectName,
@@ -725,6 +748,12 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       // User Profile
       user, updateUser,
+
+      // PromptBar State
+      isPromptBarVisible,
+      togglePromptBar,
+      showPromptBar,
+      hidePromptBar,
 
       // AI & Provider State
       activeModelId, setActiveModelId,
@@ -745,8 +774,6 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       undo, redo, canUndo: past.length > 0, canRedo: future.length > 0,
       newProject
     }}>
-      {/* Activate Spectral Agent Logic */}
-      <SpectralAgent />
       {children}
     </EditorContext.Provider>
   );

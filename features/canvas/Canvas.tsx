@@ -17,7 +17,8 @@ export const Canvas: React.FC = () => {
     activeTool,
     setActiveTool,
     pan,
-    setPan
+    setPan,
+    isPromptBarVisible
   } = useEditor();
   
   const [isPanning, setIsPanning] = useState(false);
@@ -67,7 +68,10 @@ export const Canvas: React.FC = () => {
       if ((e.target as HTMLElement).closest('.custom-scrollbar')) return;
       if ((e.target as HTMLElement).tagName === 'TEXTAREA') return;
 
-      e.preventDefault();
+      // Only prevent default if the event is cancelable (not passive)
+      if (e.cancelable) {
+          e.preventDefault();
+      }
 
       if (e.ctrlKey || e.metaKey) {
           // ZOOM
@@ -302,7 +306,7 @@ export const Canvas: React.FC = () => {
         </div>
       </div>
 
-      <PromptBar />
+      {isPromptBarVisible && <PromptBar />}
     </main>
   );
 };

@@ -192,6 +192,12 @@ export interface EditorContextType {
   user: UserProfile;
   updateUser: (profile: Partial<UserProfile>) => void;
 
+  // PromptBar State
+  isPromptBarVisible: boolean;
+  togglePromptBar: () => void;
+  showPromptBar: () => void;
+  hidePromptBar: () => void;
+
   // AI & MCP
   activeModelId: string;
   setActiveModelId: (id: string) => void;

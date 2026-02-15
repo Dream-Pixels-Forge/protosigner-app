@@ -27,7 +27,9 @@ export const Toolbar: React.FC = () => {
         fitToPage, 
         fitToViewport, 
         fitToSelection,
-        selectElement 
+        selectElement,
+        isPromptBarVisible,
+        togglePromptBar
     } = useEditor();
     
     const [showFitMenu, setShowFitMenu] = useState(false);
@@ -199,6 +201,15 @@ export const Toolbar: React.FC = () => {
                 onClick={handleSnapshot} 
                 active={isSnapping}
                 disabled={isSnapping}
+            />
+            
+            <div className="h-px w-6 mx-auto bg-white/10 my-1"></div>
+            
+            <ToolbarBtn 
+                icon={isPromptBarVisible ? "chat_bubble" : "chat_bubble_outline"} 
+                label={isPromptBarVisible ? "Hide AI Prompt" : "Show AI Prompt"} 
+                onClick={togglePromptBar}
+                active={isPromptBarVisible}
             />
         </div>
     );

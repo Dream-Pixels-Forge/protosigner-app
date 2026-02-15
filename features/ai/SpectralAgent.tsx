@@ -1,19 +1,20 @@
+import { useEffect } from 'react';
+import { AIProvider, EnvironmentMode } from '../../types';
 
-import React, { useEffect } from 'react';
-import { useEditor } from '../../context/EditorContext';
+interface UseSpectralAgentProps {
+    environmentMode: EnvironmentMode;
+    activeModelProvider: AIProvider;
+    setActiveModelProvider: (provider: AIProvider) => void;
+    setActiveModelId: (id: string) => void;
+}
 
-// --- REACT COMPONENT COORDINATOR ---
-
-export const SpectralAgent: React.FC = () => {
-    const { 
-        environmentMode, 
-        activeModelProvider, 
-        setActiveModelProvider, 
-        setActiveModelId,
-        ollamaServerUrl
-    } = useEditor();
-
-    // Environment Watcher
+// --- SPECTRAL AGENT HOOK ---
+export const useSpectralAgent = ({
+    environmentMode,
+    activeModelProvider,
+    setActiveModelProvider,
+    setActiveModelId
+}: UseSpectralAgentProps) => {
     useEffect(() => {
         const coordinateSystem = async () => {
             if (environmentMode === 'local') {
@@ -35,6 +36,4 @@ export const SpectralAgent: React.FC = () => {
 
         coordinateSystem();
     }, [environmentMode, setActiveModelProvider, setActiveModelId, activeModelProvider]);
-
-    return null; // Headless Agent
 };

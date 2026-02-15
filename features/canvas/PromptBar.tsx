@@ -16,7 +16,8 @@ export const PromptBar: React.FC = () => {
         generateContent, 
         generateStyles,
         expertMode,
-        setExpertMode
+        setExpertMode,
+        hidePromptBar
     } = useEditor();
     
     const [prompt, setPrompt] = useState('');
@@ -204,6 +205,14 @@ export const PromptBar: React.FC = () => {
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-4xl z-50 flex flex-col gap-0" onMouseDown={(e) => e.stopPropagation()}>
             {/* Mode Toggles */}
             <div className="flex items-center gap-0.5 self-start ml-6 mb-[-1px] z-10">
+                {/* Minimize Button */}
+                <button
+                    onClick={hidePromptBar}
+                    className="mr-2 w-7 h-7 flex items-center justify-center rounded-lg bg-black/40 text-slate-400 hover:text-white hover:bg-black/60 transition-colors border border-transparent hover:border-white/10"
+                    title="Minimize Prompt Bar"
+                >
+                    <span className="material-icons text-[16px]">expand_more</span>
+                </button>
                 <button 
                     onClick={() => setMode('page')}
                     className={`px-4 py-1.5 rounded-t-lg text-[11px] font-bold transition-all border-t border-x ${mode === 'page' ? 'bg-[#1e1e1e] text-white border-white/20' : 'bg-black/40 text-slate-400 border-transparent hover:text-white hover:bg-black/60'}`}
