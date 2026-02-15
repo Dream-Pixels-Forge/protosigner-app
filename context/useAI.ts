@@ -5,7 +5,7 @@ import { UIElement, ProjectSettings, AIProvider, ExpertMode } from '../types';
 import { sleep, insertNodeIntoParent, updateElementRecursively, normalizeStyleProperties } from './utils';
 import { Orchestrator } from '../features/ai/orchestrator';
 import { ensureImageSource } from './imageUtils';
-import { getLocalOptimizations, generateMinimalPrompt, LOCAL_MODEL_CONFIGS } from '../features/ai/LocalModelOptimizer';
+import { getLocalOptimizations, LOCAL_MODEL_CONFIGS } from '../features/ai/LocalModelOptimizer';
 
 interface UseAIProps {
     elements: UIElement[];
@@ -255,11 +255,234 @@ export const useAI = ({
             // Debug: Log response structure
             console.log("[QueryAI] Response keys:", Object.keys(data));
             
+            // Check if response was truncated
+            if (data.done_reason) {
+                console.log("[QueryAI] Done reason:", data.done_reason);
+                if (data.done_reason === 'length') {
+                    console.warn("[QueryAI] WARNING: Response was truncated due to max token limit!");
+                }
+            }
+            
             const content = data.choices?.[0]?.message?.content || data.message?.content || '';
             console.log("[QueryAI] Content:", content?.substring(0, 200)); // Log first 200 chars
             console.log("[QueryAI] Content length:", content?.length || 0);
             return content;
         }
+    };
+
+    // --- SECTION-BY-SECTION GENERATION WITH RETRIES ---
+    const MAX_RETRIES = 3;
+    const SECTION_DELAY_MS = 500; // Delay between sections
+    
+    // Generate a single section with retry logic
+    const generateSingleSection = async (
+        sectionName: string,
+        systemInstruction: string,
+        userPrompt: string,
+        imageContext?: string
+    ): Promise<UIElement[] | null> => {
+        console.log(`[SectionGen] Generating: ${sectionName}`);
+        
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                console.log(`[SectionGen] ${sectionName} - Attempt ${attempt}/${MAX_RETRIES}`);
+                
+                const responseText = await queryAI(systemInstruction, userPrompt, imageContext, true);
+                
+                if (!responseText || responseText.length < 10) {
+                    console.warn(`[SectionGen] ${sectionName} - Empty response, retrying...`);
+                    if (attempt < MAX_RETRIES) {
+                        await sleep(1000 * attempt); // Increasing delay
+                        continue;
+                    }
+                    return null;
+                }
+                
+                // Clean and parse JSON
+                let cleanJson = responseText
+                    .replace(/```json/g, '')
+                    .replace(/```/g, '')
+                    .replace(/^```/g, '')
+                    .replace(/```$/g, '')
+                    .trim();
+                
+                // Handle escaped JSON
+                if (cleanJson.startsWith('"') && cleanJson.endsWith('"')) {
+                    cleanJson = cleanJson.slice(1, -1);
+                    cleanJson = cleanJson.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                }
+                
+                // Try to parse with fallback
+                let parsed: any;
+                try {
+                    parsed = JSON.parse(cleanJson);
+                } catch (parseError: any) {
+                    // Try to fix truncated JSON
+                    const lastBrace = cleanJson.lastIndexOf('}');
+                    const lastBracket = cleanJson.lastIndexOf(']');
+                    const lastComplete = Math.max(lastBrace, lastBracket);
+                    
+                    if (lastComplete > 10) {
+                        const fixedJson = cleanJson.substring(0, lastComplete + 1);
+                        try {
+                            parsed = JSON.parse(fixedJson);
+                            console.log(`[SectionGen] ${sectionName} - Fixed truncated JSON`);
+                        } catch {
+                            console.warn(`[SectionGen] ${sectionName} - Failed to parse, attempt ${attempt}`);
+                            if (attempt < MAX_RETRIES) {
+                                await sleep(1000 * attempt);
+                                continue;
+                            }
+                            return null;
+                        }
+                    } else {
+                        console.warn(`[SectionGen] ${sectionName} - Parse failed, attempt ${attempt}`);
+                        if (attempt < MAX_RETRIES) {
+                            await sleep(1000 * attempt);
+                            continue;
+                        }
+                        return null;
+                    }
+                }
+                
+                // Normalize to array
+                if (!Array.isArray(parsed)) {
+                    if (parsed.children) {
+                        parsed = [parsed];
+                    } else if (parsed.type) {
+                        parsed = [parsed];
+                    } else {
+                        console.warn(`[SectionGen] ${sectionName} - Unexpected format`);
+                        if (attempt < MAX_RETRIES) {
+                            await sleep(1000 * attempt);
+                            continue;
+                        }
+                        return null;
+                    }
+                }
+                
+                // Apply fixes
+                parsed = fixCommonIssues(parsed);
+                
+                // Validate
+                const validation = validateAIResponse(parsed);
+                if (!validation.valid) {
+                    console.warn(`[SectionGen] ${sectionName} - Validation errors:`, validation.errors.slice(0, 3));
+                    // Continue anyway if we have valid data
+                }
+                
+                console.log(`[SectionGen] ✓ ${sectionName} - Success! (${parsed.length} elements)`);
+                return parsed;
+                
+            } catch (error: any) {
+                console.warn(`[SectionGen] ${sectionName} - Error: ${error.message}`);
+                if (attempt < MAX_RETRIES) {
+                    await sleep(1000 * attempt);
+                }
+            }
+        }
+        
+        console.error(`[SectionGen] ✗ ${sectionName} - Failed after ${MAX_RETRIES} attempts`);
+        return null;
+    };
+
+    // Generate sections one by one for local models (prevents truncation)
+    const generateSectionsSequentially = async (
+        sections: { name: string; instruction: string; isBackground?: boolean }[],
+        parentId: string,
+        onProgress?: (completed: number, total: number) => void
+    ): Promise<UIElement[]> => {
+        const allElements: UIElement[] = [];
+        
+        for (let i = 0; i < sections.length; i++) {
+            const section = sections[i];
+            console.log(`[SectionGen] Progress: ${i + 1}/${sections.length} - ${section.name}`);
+            
+            if (onProgress) {
+                onProgress(i, sections.length);
+            }
+            
+            // Handle page background specially
+            if (section.isBackground) {
+                try {
+                    const response = await queryAI(section.instruction, "Generate page background settings", undefined, true);
+                    const cleaned = response.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const bgSettings = JSON.parse(cleaned);
+                    
+                    if (bgSettings.backgroundColor || bgSettings.color) {
+                        console.log(`[SectionGen] Applying page background:`, bgSettings);
+                        // Update the page element with background settings
+                        updateElementStyle(parentId, {
+                            backgroundColor: bgSettings.backgroundColor,
+                            color: bgSettings.color,
+                            minHeight: bgSettings.minHeight || '100%'
+                        } as any);
+                    }
+                } catch (bgErr) {
+                    console.warn(`[SectionGen] Failed to set page background:`, bgErr);
+                }
+                continue; // Skip adding background as element
+            }
+            
+            const result = await generateSingleSection(
+                section.name,
+                section.instruction,
+                `Generate this section: ${section.name}`,
+                undefined
+            );
+            
+            if (result && result.length > 0) {
+                // Add each element to the parent
+                for (const element of result) {
+                    const newId = Math.random().toString(36).substr(2, 9);
+                    const newElement: UIElement = {
+                        ...element,
+                        id: newId,
+                        children: element.children || []
+                    };
+                    
+                    setElements(prev => insertNodeIntoParent(prev, parentId, newElement));
+                    await sleep(100);
+                    allElements.push(newElement);
+                }
+            } else {
+                // Create fallback element for failed section
+                console.warn(`[SectionGen] Creating fallback for: ${section.name}`);
+                const fallbackId = Math.random().toString(36).substr(2, 9);
+                const fallbackElement: UIElement = {
+                    id: fallbackId,
+                    type: 'container',
+                    name: section.name,
+                    props: {},
+                    style: {
+                        display: 'flex',
+                        width: '100%',
+                        height: 200,
+                        padding: 20,
+                        backgroundColor: '#1e293b'
+                    },
+                    children: [],
+                    isExpanded: true,
+                    isLocked: false
+                };
+                
+                setElements(prev => insertNodeIntoParent(prev, parentId, fallbackElement));
+                await sleep(100);
+                allElements.push(fallbackElement);
+            }
+            
+            // Delay between sections
+            if (i < sections.length - 1) {
+                await sleep(SECTION_DELAY_MS);
+            }
+        }
+        
+        if (onProgress) {
+            onProgress(sections.length, sections.length);
+        }
+        
+        console.log(`[SectionGen] Complete! Generated ${allElements.length} elements`);
+        return allElements;
     };
 
     // --- RESPONSE VALIDATION ---
@@ -378,6 +601,11 @@ export const useAI = ({
         const fixElement = (el: any, index: number = 0): any => {
             const fixed = { ...el };
             
+            // FIX: Normalize type - convert "div" to "container"
+            if (fixed.type === 'div' || fixed.type === 'span' || fixed.type === 'section') {
+                fixed.type = 'container';
+            }
+            
             // FIX: Add default 'type' if missing - infer from structure
             if (!fixed.type) {
                 // Try to infer type from properties or structure
@@ -399,23 +627,46 @@ export const useAI = ({
                 fixed.name = `AI Element ${index}`;
             }
             
-            // Fix string pixels to numbers
+            // Fix string pixels to numbers - BEFORE normalization
             if (fixed.style) {
-                ['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'fontSize', 'gap', 'padding', 'margin'].forEach(prop => {
-                    if (fixed.style[prop]) {
-                        // Handle '100px' strings
-                        if (typeof fixed.style[prop] === 'string' && fixed.style[prop].includes('px')) {
-                            const num = parseInt(fixed.style[prop]);
-                            if (!isNaN(num)) fixed.style[prop] = num;
+                // First, normalize any kebab-case keys that might have "px" values
+                const styleKeys = Object.keys(fixed.style);
+                styleKeys.forEach(key => {
+                    const value = fixed.style[key];
+                    if (typeof value === 'string') {
+                        // Handle "24px" strings
+                        if (value.includes('px')) {
+                            const num = parseInt(value);
+                            if (!isNaN(num)) {
+                                fixed.style[key] = num;
+                            }
                         }
                         // Handle numeric strings like "100"
-                        else if (typeof fixed.style[prop] === 'string' && !isNaN(Number(fixed.style[prop]))) {
-                            fixed.style[prop] = Number(fixed.style[prop]);
+                        else if (!isNaN(Number(value)) && key !== 'width' && key !== 'height') {
+                            fixed.style[key] = Number(value);
                         }
                     }
                 });
                 
-                // Fix percentage strings that should be numbers
+                // Fix specific properties that should be numbers
+                ['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'fontSize', 'gap', 'padding', 'margin', 'top', 'left', 'right', 'bottom', 'borderRadius', 'zIndex', 'flex', 'flexGrow', 'flexShrink'].forEach(prop => {
+                    if (fixed.style[prop] !== undefined && fixed.style[prop] !== null) {
+                        const val = fixed.style[prop];
+                        if (typeof val === 'string') {
+                            // Handle '100px' strings
+                            if (val.includes('px')) {
+                                const num = parseInt(val);
+                                if (!isNaN(num)) fixed.style[prop] = num;
+                            }
+                            // Handle numeric strings like "100"
+                            else if (!isNaN(Number(val))) {
+                                fixed.style[prop] = Number(val);
+                            }
+                        }
+                    }
+                });
+                
+                // Fix percentage strings that should be numbers (but keep valid percentages)
                 if (typeof fixed.style.width === 'string' && fixed.style.width.includes('%')) {
                     // Keep percentage as string, that's valid
                 }
@@ -704,35 +955,69 @@ export const useAI = ({
                      console.log("[GM] Grid Master disabled. Using direct execution.");
                  }
 
-                  // ============================================================
-                  // STEP 2: ORCHESTRATED EXECUTION
-                  // ============================================================
-                  let systemInstruction: string;
-                  
-                  if (isLocal) {
-                    // ULTRA-OPTIMIZED for local models (Ollama)
-                    // Use minimal prompt to reduce token count and improve speed
-                    systemInstruction = generateMinimalPrompt(
-                      prompt,
-                      gmPlan.skillId,
-                      hardwareLevel
-                    );
+                   // ============================================================
+                   // STEP 2: ORCHESTRATED EXECUTION
+                   // ============================================================
+                   let systemInstruction: string;
+                   
+                   if (isLocal) {
+                     // ============================================================
+                     // LOCAL MODEL: Use section-by-section generation (prevents truncation)
+                      // ============================================================
+                      console.log("[AI] Using section-by-section generation for local model...");
+                      console.log("[AI] Skill:", gmPlan.skillId || "none");
+                      
+                      // Use Orchestrator to get proper section prompts with theme coherency
+                      const sectionPrompts = Orchestrator.getSectionPrompts({
+                          expertMode: expertMode,
+                          projectSettings: projectSettings,
+                          isLocal: true,
+                          targetDimensions: targetDimensions,
+                          requiredSkillId: gmPlan.skillId,
+                          layoutAdvice: gmPlan.layoutAdvice,
+                          hardwareLevel: hardwareLevel
+                      });
+                      
+                      // Convert to format expected by generateSectionsSequentially
+                      const sections = sectionPrompts.map(s => ({ 
+                          name: s.name, 
+                          instruction: s.instruction,
+                          isBackground: s.isBackground 
+                      }));
+                      
+                      try {
+                         await generateSectionsSequentially(sections, effectiveId);
+                         console.log("[AI] Section-by-section generation complete!");
+                         setIsGenerating(false);
+                         return;
+                      } catch (sectionErr: any) {
+                         console.warn("[AI] Section generation failed, falling back to single generation:", sectionErr.message);
+                         // Fall through to single generation if sequential fails
+                      }
+                    } 
                     
-                    // Add GM layout advice if available (local models still benefit from layout math)
-                    if (gmPlan.layoutAdvice) {
-                      systemInstruction += `\n\nLayout: ${gmPlan.layoutAdvice}`;
+                    // Cloud models or fallback: Use single generation
+                    if (isLocal) {
+                        // For fallback, use orchestrator's cloud prompt (simpler for local fallback)
+                        systemInstruction = Orchestrator.generateSystemPrompt(
+                            expertMode, 
+                            projectSettings, 
+                            true, 
+                            targetDimensions, 
+                            gmPlan.skillId,
+                            gmPlan.layoutAdvice
+                        );
+                    } else {
+                      // Full prompt for cloud models
+                      systemInstruction = Orchestrator.generateSystemPrompt(
+                        gmPlan.agentId as ExpertMode, 
+                        projectSettings, 
+                        isLocal, 
+                        targetDimensions, 
+                        gmPlan.skillId,
+                        gmPlan.layoutAdvice // Inject GM's math (if available)
+                      );
                     }
-                  } else {
-                    // Full prompt for cloud models
-                    systemInstruction = Orchestrator.generateSystemPrompt(
-                      gmPlan.agentId as ExpertMode, 
-                      projectSettings, 
-                      isLocal, 
-                      targetDimensions, 
-                      gmPlan.skillId,
-                      gmPlan.layoutAdvice // Inject GM's math (if available)
-                    );
-                  }
                   
                    console.log("[AI] Calling model with prompt...");
                    
@@ -762,42 +1047,76 @@ export const useAI = ({
                                cleanJson = cleanJson.replace(/\\n/g, '\n').replace(/\\"/g, '"');
                            }
                            
-                           // FIX: Handle unterminated strings and incomplete JSON
-                           let parsed: any;
-                           try {
-                               parsed = JSON.parse(cleanJson);
-                           } catch (parseError: any) {
-                               // Try to fix unterminated strings by finding the last complete object
-                               console.warn('[AI] JSON parse issue, attempting to fix:', parseError.message);
-                               
-                               // Try to extract valid JSON array or object
-                               const lastBrace = cleanJson.lastIndexOf('}');
-                               const lastBracket = cleanJson.lastIndexOf(']');
-                               const lastComplete = Math.max(lastBrace, lastBracket);
-                               
-                               if (lastComplete > 0) {
-                                   const fixedJson = cleanJson.substring(0, lastComplete + 1);
-                                   try {
-                                       parsed = JSON.parse(fixedJson);
-                                       console.warn('[AI] Fixed incomplete JSON by trimming');
-                                   } catch {
-                                       // If that fails, try to find the first complete object in array
-                                       const arrayMatch = cleanJson.match(/\[[\s\S]*\{[\s\S]*\}[\s\S]*\]/);
-                                       if (arrayMatch) {
-                                           try {
-                                               parsed = JSON.parse(arrayMatch[0]);
-                                               console.warn('[AI] Extracted partial array from response');
-                                           } catch {
-                                               throw new Error('Unable to parse JSON');
-                                           }
-                                       } else {
-                                           throw new Error('Unable to fix incomplete JSON');
-                                       }
-                                   }
-                               } else {
-                                   throw new Error('Unable to parse JSON');
-                               }
-                           }
+                            // FIX: Handle unterminated strings and incomplete JSON
+                            let parsed: any;
+                            try {
+                                parsed = JSON.parse(cleanJson);
+                            } catch (parseError: any) {
+                                // Try to fix unterminated strings by finding the last complete object
+                                console.warn('[AI] JSON parse issue, attempting to fix:', parseError.message);
+                                
+                                // Try to extract valid JSON array or object
+                                let lastBrace = cleanJson.lastIndexOf('}');
+                                let lastBracket = cleanJson.lastIndexOf(']');
+                                let lastComplete = Math.max(lastBrace, lastBracket);
+                                
+                                // If response ends abruptly (no closing bracket), try harder
+                                if (lastComplete < cleanJson.length - 10) {
+                                    // Find the last complete top-level object by counting braces
+                                    let braceCount = 0;
+                                    let inString = false;
+                                    let escape = false;
+                                    for (let i = cleanJson.length - 1; i >= 0; i--) {
+                                        const char = cleanJson[i];
+                                        if (escape) {
+                                            escape = false;
+                                            continue;
+                                        }
+                                        if (char === '\\') {
+                                            escape = true;
+                                            continue;
+                                        }
+                                        if (char === '"') {
+                                            inString = !inString;
+                                            continue;
+                                        }
+                                        if (inString) continue;
+                                        
+                                        if (char === '}') braceCount++;
+                                        if (char === '{') braceCount--;
+                                        if (char === ']') braceCount++;
+                                        if (char === '[') braceCount--;
+                                        
+                                        if (braceCount === 0 && (char === '}' || char === ']')) {
+                                            lastComplete = i;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                if (lastComplete > 0) {
+                                    const fixedJson = cleanJson.substring(0, lastComplete + 1);
+                                    try {
+                                        parsed = JSON.parse(fixedJson);
+                                        console.warn('[AI] Fixed incomplete JSON by trimming');
+                                    } catch {
+                                        // If that fails, try to find the first complete object in array
+                                        const arrayMatch = cleanJson.match(/\[[\s\S]*\{[\s\S]*\}[\s\S]*\]/);
+                                        if (arrayMatch) {
+                                            try {
+                                                parsed = JSON.parse(arrayMatch[0]);
+                                                console.warn('[AI] Extracted partial array from response');
+                                            } catch {
+                                                throw new Error('Unable to parse JSON');
+                                            }
+                                        } else {
+                                            throw new Error('Unable to fix incomplete JSON');
+                                        }
+                                    }
+                                } else {
+                                    throw new Error('Unable to parse JSON');
+                                }
+                            }
                            
                            // Handle various response formats
                            if (!Array.isArray(parsed)) {

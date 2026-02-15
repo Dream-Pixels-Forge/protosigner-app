@@ -14,31 +14,31 @@ export interface LocalModelConfig {
 export const LOCAL_MODEL_CONFIGS: Record<string, LocalModelConfig> = {
   // 1B models on 4GB RAM - Increased tokens for templates
   'ultra-light': {
-    maxTokens: 2048,  // Increased from 512 - need more for full templates
+    maxTokens: 4096,  // Increased from 2048 - need more for full templates
     temperature: 0.3,
     topP: 0.8,
     repeatPenalty: 1.1,
-    numCtx: 2048  // Increased context
+    numCtx: 4096  // Increased context
   },
   // 1.5B-2B models on 6GB RAM
   'light': {
-    maxTokens: 2560,  // Increased from 768
+    maxTokens: 5120,  // Increased from 2560 - need more for full templates
     temperature: 0.4,
     topP: 0.85,
     repeatPenalty: 1.15,
-    numCtx: 3072
+    numCtx: 4096
   },
   // 3B-4B models on 8GB RAM
   'balanced': {
-    maxTokens: 3072,  // Increased from 1024
+    maxTokens: 6144,  // Increased from 3072 - need more for full templates
     temperature: 0.5,
     topP: 0.9,
     repeatPenalty: 1.2,
-    numCtx: 4096
+    numCtx: 8192
   },
   // 7B+ models on 12GB+ RAM
   'quality': {
-    maxTokens: 4096,  // Increased from 1536
+    maxTokens: 8192,  // Increased from 4096 - can handle large outputs
     temperature: 0.6,
     topP: 0.95,
     repeatPenalty: 1.3,
@@ -100,7 +100,9 @@ export const generateMinimalPrompt = (
   // More explicit JSON requirement
   let prompt = `You are a UI designer. Output ONLY valid JSON array. No explanations.\n`;
   prompt += `Output format: [{type,name,props,style,children}]\n`;
-  prompt += `IMPORTANT: Use camelCase for ALL CSS properties (backgroundColor, justifyContent, flexDirection, etc). Never use kebab-case (background-color, justify-content, flex-direction).\n`;
+  prompt += `IMPORTANT: Use camelCase for ALL CSS properties (backgroundColor, justifyContent, flexDirection, etc). Never use kebab-case.\n`;
+  prompt += `CRITICAL: Always close all brackets and braces. Incomplete JSON will be rejected.\n`;
+  prompt += `Keep output concise - use minimal whitespace.\n`;
   prompt += `IMPORTANT: Output ONLY JSON. No text before or after.\n\n`;
   
   // Add template if specified

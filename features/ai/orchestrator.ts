@@ -2,322 +2,593 @@
 import { ExpertMode, ProjectSettings } from '../../types';
 import { AGENT_REGISTRY } from './agents';
 import { SKILL_REGISTRY } from './skills';
-import { getLocalOptimizations, getTemplateStructure } from './LocalModelOptimizer';
+
+// ============================================================
+// ORCHESTRATOR - Master Controller for AI Generation
+// ============================================================
+// Handles: Agents, Skills, Sections, Theme, Local/Cloud Modes
+// ============================================================
+
+export interface OrchestratorConfig {
+    expertMode: ExpertMode;
+    projectSettings: ProjectSettings;
+    isLocal: boolean;
+    targetDimensions: { width: number; height: number };
+    requiredSkillId?: string | null;
+    layoutAdvice?: string;
+    hardwareLevel?: string;
+}
+
+export interface SectionPrompt {
+    name: string;
+    instruction: string;
+    agentId: string;
+    agentName: string;
+    isBackground?: boolean; // If true, this sets page background
+}
+
+interface AgentTheme {
+    primary: string;
+    background: string;
+    surface: string;
+    text: string;
+    textSecondary: string;
+    accent: string;
+    border: string;
+    font: string;
+    radius: { small: number; medium: number; large: number };
+}
+
+// ============================================================
+// AGENT THEMES - Consistent design per agent
+// ============================================================
+const AGENT_THEMES: Record<string, AgentTheme> = {
+    'landing': {
+        primary: '#3b82f6',
+        background: '#0f172a',
+        surface: '#1e293b',
+        text: '#f8fafc',
+        textSecondary: '#94a3b8',
+        accent: '#8b5cf6',
+        border: 'rgba(255,255,255,0.1)',
+        font: 'Inter, system-ui, sans-serif',
+        radius: { small: 8, medium: 12, large: 24 }
+    },
+    'full-stack': {
+        primary: '#2563eb',
+        background: '#ffffff',
+        surface: '#f8fafc',
+        text: '#0f172a',
+        textSecondary: '#64748b',
+        accent: '#0ea5e9',
+        border: 'rgba(0,0,0,0.1)',
+        font: 'Inter, system-ui, sans-serif',
+        radius: { small: 6, medium: 8, large: 16 }
+    },
+    'hud': {
+        primary: '#06b6d4',
+        background: '#050505',
+        surface: '#0a0a0a',
+        text: '#00ff88',
+        textSecondary: '#06b6d4',
+        accent: '#f59e0b',
+        border: 'rgba(6,182,212,0.3)',
+        font: 'JetBrains Mono, monospace',
+        radius: { small: 0, medium: 0, large: 0 }
+    },
+    'dashboard': {
+        primary: '#10b981',
+        background: '#f1f5f9',
+        surface: '#ffffff',
+        text: '#1e293b',
+        textSecondary: '#64748b',
+        accent: '#f59e0b',
+        border: 'rgba(0,0,0,0.05)',
+        font: 'Inter, system-ui, sans-serif',
+        radius: { small: 6, medium: 8, large: 12 }
+    },
+    'os': {
+        primary: '#6366f1',
+        background: '#1e1e2e',
+        surface: '#2d2d3d',
+        text: '#cdd6f4',
+        textSecondary: '#a6adc8',
+        accent: '#cba6f7',
+        border: 'rgba(255,255,255,0.1)',
+        font: 'system-ui, sans-serif',
+        radius: { small: 8, medium: 12, large: 16 }
+    },
+    'mobile': {
+        primary: '#007aff',
+        background: '#ffffff',
+        surface: '#f2f2f7',
+        text: '#000000',
+        textSecondary: '#8e8e93',
+        accent: '#34c759',
+        border: 'rgba(0,0,0,0.1)',
+        font: '-apple-system, BlinkMacSystemFont, sans-serif',
+        radius: { small: 8, medium: 12, large: 20 }
+    }
+};
 
 export class Orchestrator {
     
+    // ============================================================
+    // MAIN METHOD: Get section prompts for generation
+    // ============================================================
+    static getSectionPrompts(config: OrchestratorConfig): SectionPrompt[] {
+        const { expertMode, projectSettings, isLocal, targetDimensions, requiredSkillId, layoutAdvice } = config;
+        
+        // Get agent
+        const agent = AGENT_REGISTRY.find(a => a.id === expertMode) || AGENT_REGISTRY[0];
+        const theme = AGENT_THEMES[expertMode] || AGENT_THEMES['landing'];
+        
+        console.log(`[Orchestrator] Agent: ${agent.name}, Skill: ${requiredSkillId || 'none'}, Local: ${isLocal}`);
+        
+        // If skill is selected, generate skill-specific sections
+        if (requiredSkillId && requiredSkillId !== 'null') {
+            return this.getSkillSections(agent.id, agent.name, theme, requiredSkillId, targetDimensions, isLocal);
+        }
+        
+        // Default: generate standard landing page sections
+        return this.getStandardSections(agent.id, agent.name, theme, targetDimensions, layoutAdvice, isLocal);
+    }
+    
+    // ============================================================
+    // SKILL-BASED SECTIONS
+    // ============================================================
+    private static getSkillSections(
+        agentId: string,
+        agentName: string,
+        theme: AgentTheme,
+        skillId: string,
+        dimensions: { width: number; height: number },
+        isLocal: boolean
+    ): SectionPrompt[] {
+        
+        const { width, height } = dimensions;
+        
+        switch (skillId) {
+            case 'hero-split':
+                return [
+                    { name: 'Page Background', instruction: this.buildPageBackgroundPrompt(agentName, theme, width, height, isLocal), agentId, agentName, isBackground: true },
+                    { name: 'Hero Split', instruction: this.buildHeroSplitPrompt(agentName, theme, width, height, isLocal), agentId, agentName }
+                ];
+                
+            case 'bento-grid':
+                return [
+                    { name: 'Page Background', instruction: this.buildPageBackgroundPrompt(agentName, theme, width, height, isLocal), agentId, agentName, isBackground: true },
+                    { name: 'Bento Grid', instruction: this.buildBentoGridPrompt(agentName, theme, width, isLocal), agentId, agentName }
+                ];
+                
+            case 'saas-pricing':
+                return [
+                    { name: 'Page Background', instruction: this.buildPageBackgroundPrompt(agentName, theme, width, height, isLocal), agentId, agentName, isBackground: true },
+                    { name: 'Pricing', instruction: this.buildPricingPrompt(agentName, theme, width, isLocal), agentId, agentName }
+                ];
+                
+            case 'center-splash':
+                return [
+                    { name: 'Page Background', instruction: this.buildPageBackgroundPrompt(agentName, theme, width, height, isLocal), agentId, agentName, isBackground: true },
+                    { name: 'Hero Center', instruction: this.buildCenterSplashPrompt(agentName, theme, width, height, isLocal), agentId, agentName }
+                ];
+                
+            case 'modular-grid':
+                return [
+                    { name: 'Page Background', instruction: this.buildPageBackgroundPrompt(agentName, theme, width, height, isLocal), agentId, agentName, isBackground: true },
+                    { name: 'Modular Grid', instruction: this.buildModularGridPrompt(agentName, theme, width, isLocal), agentId, agentName }
+                ];
+                
+            default:
+                return this.getStandardSections(agentId, agentName, theme, dimensions, undefined, isLocal);
+        }
+    }
+    
+    // ============================================================
+    // STANDARD SECTIONS (No skill selected)
+    // ============================================================
+    private static getStandardSections(
+        agentId: string,
+        agentName: string,
+        theme: AgentTheme,
+        dimensions: { width: number; height: number },
+        layoutAdvice: string | undefined,
+        isLocal: boolean
+    ): SectionPrompt[] {
+        const { width, height } = dimensions;
+        
+        return [
+            { name: 'Page Background', instruction: this.buildPageBackgroundPrompt(agentName, theme, width, height, isLocal), agentId, agentName, isBackground: true },
+            { name: 'Header/Nav', instruction: this.buildHeaderPrompt(agentName, theme, width, isLocal), agentId, agentName },
+            { name: 'Hero Section', instruction: this.buildHeroPrompt(agentName, theme, width, height, isLocal), agentId, agentName },
+            { name: 'Features', instruction: this.buildFeaturesPrompt(agentName, theme, width, isLocal), agentId, agentName },
+            { name: 'Content', instruction: this.buildContentPrompt(agentName, theme, width, isLocal), agentId, agentName },
+            { name: 'CTA/Footer', instruction: this.buildFooterPrompt(agentName, theme, width, isLocal), agentId, agentName }
+        ];
+    }
+    
+    // ============================================================
+    // SECTION BUILDERS
+    // ============================================================
+    
+    private static buildPageBackgroundPrompt(agentName: string, theme: AgentTheme, width: number, height: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON object (not array). No text before or after.
+
+THEME (MUST USE):
+- Background: ${t.background}
+- Surface: ${t.surface}
+
+CONTEXT: Generate page background for ${width}x${height}px.
+Return a JSON object with page background settings:
+{
+  "backgroundColor": "${t.background}",
+  "color": "${t.text}",
+  "minHeight": ${height}
+}
+
+RULES:
+- Use camelCase CSS
+- Numbers only (no "px")
+- Valid JSON object only
+`;
+    }
+    
+    private static buildHeaderPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Border: ${t.border}
+- Radius: ${t.radius.small}px
+
+CONTEXT: Header/nav for ${width}px.
+- Logo left, nav right
+- display:flex, justifyContent:space-between, alignItems:center
+- Height: 80px, Width: 100%
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS (backgroundColor, justifyContent)
+- Numbers only (no "px")
+- Valid JSON array
+- Close all brackets {}
+`;
+    }
+    
+    private static buildHeroPrompt(agentName: string, theme: AgentTheme, width: number, height: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Text Secondary: ${t.textSecondary}
+- Accent: ${t.accent}
+- Font: ${t.font}
+
+CONTEXT: Hero for ${width}x${height}.
+- Big title (48-64px), subtitle, 2 buttons
+- display:flex, flexDirection:column, alignItems:center, textAlign:center
+- MinHeight: 500px, MaxWidth: 800px
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    private static buildHeroSplitPrompt(agentName: string, theme: AgentTheme, width: number, height: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Text Secondary: ${t.textSecondary}
+- Border: ${t.border}
+
+CONTEXT: SPLIT HERO ${width}x${height}.
+LAYOUT: Left text, Right visual
+- Left: Badge, Headline, Subtext, 2 Buttons
+- Right: Visual container
+- display:flex, flexDirection:row, justifyContent:space-between
+- MinHeight: 600px, Gap: 60px
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    private static buildFeaturesPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Text Secondary: ${t.textSecondary}
+- Border: ${t.border}
+- Radius: ${t.radius.medium}px
+
+CONTEXT: Features section ${width}px.
+- 3-4 cards in row
+- display:flex gap:24 OR display:grid
+- Each card: emoji, title, description
+- Card bg: ${t.surface}
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    private static buildBentoGridPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Text Secondary: ${t.textSecondary}
+- Border: ${t.border}
+
+CONTEXT: BENTO GRID ${width}px.
+- display:grid, gridTemplateColumns:repeat(2,1fr), gap:24
+- 4 cards (mix sizes)
+- Card bg: ${t.surface}
+- Radius: ${t.radius.large}px
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS (gridTemplateColumns, backgroundColor)
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    private static buildPricingPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Text Secondary: ${t.textSecondary}
+- Accent: ${t.accent}
+- Border: ${t.border}
+
+CONTEXT: PRICING section ${width}px.
+- 3 cards: Basic, Pro, Enterprise
+- display:flex, gap:32, justifyContent:center
+- Pro card: larger, ${t.primary} border, "Popular" badge
+- Card bg: ${t.surface}
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    private static buildCenterSplashPrompt(agentName: string, theme: AgentTheme, width: number, height: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Text: ${t.text}
+- Accent: ${t.accent}
+
+CONTEXT: CENTER SPLASH ${width}x${height}.
+- display:flex, flexDirection:column, alignItems:center, textAlign:center
+- MinHeight: 700px
+- Title: 64-80px, fontWeight:900
+- Subtitle: 20-24px, maxWidth:700px
+- CTA button
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    private static buildModularGridPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Border: ${t.border}
+
+CONTEXT: MODULAR GRID ${width}px.
+- display:grid, gridTemplateColumns:repeat(12,1fr), gap:20
+- Mix of spans (4, 6, 8 cols)
+- Module bg: ${t.surface}
+- Radius: 12px
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS (gridTemplateColumns, gridColumn)
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    private static buildContentPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Text Secondary: ${t.textSecondary}
+- Border: ${t.border}
+
+CONTEXT: Content section ${width}px.
+- display:flex, flexDirection:column, alignItems:center
+- Heading + paragraph
+- MaxWidth: 800px
+- MinHeight: 300px
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    private static buildFooterPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+        const t = theme;
+        return `You are ${agentName}.
+OUTPUT: ONLY valid JSON array. No text before or after.
+
+THEME (MUST USE):
+- Primary: ${t.primary}
+- Background: ${t.background}
+- Surface: ${t.surface}
+- Text: ${t.text}
+- Text Secondary: ${t.textSecondary}
+- Border: ${t.border}
+
+CONTEXT: CTA + Footer ${width}px.
+- CTA: centered text + button
+- Footer: copyright
+- Use ONLY theme colors.
+
+RULES:
+- camelCase CSS
+- Numbers only
+- Valid JSON array
+`;
+    }
+    
+    // ============================================================
+    // CLOUD PROMPTS (Full orchestrator for non-local)
+    // ============================================================
     static generateSystemPrompt(
         expertMode: ExpertMode,
         projectSettings: ProjectSettings,
         isLocal: boolean,
         targetDimensions?: { width: number; height: number },
         requiredSkillId?: string | null,
-        layoutAdvice?: string // Received from Grid Master
+        layoutAdvice?: string
     ): string {
         
-        // 1. Load the Sub-Agent
         const agent = AGENT_REGISTRY.find(a => a.id === expertMode) || AGENT_REGISTRY[0];
-        
-        // 2. Determine Context
         const width = targetDimensions?.width || projectSettings.pageSize.width;
         const height = targetDimensions?.height || projectSettings.pageSize.height;
         const lib = projectSettings.componentLibrary || 'html-tailwind';
-
-        // 3. Construct Base Identity
-        let instruction = `You are ${agent.name}, a ${agent.role}.
         
-        MISSION:
-        Generate a UI structure matching your persona inside a container (W:${width}px, H:${height}px).
+        let instruction = `You are ${agent.name}, ${agent.role}.
         
-        YOUR STYLE GUIDE:
-        ${agent.styleGuide}
+MISSION:
+Generate a UI structure matching your persona inside a container (W:${width}px, H:${height}px).
 
-        CORE CONSTRAINTS:
-        - Output format: JSON Array of UIElement objects only.
-        - Use 'display: flex' for layout by default, unless Grid is advised.
-        - Text: 'word-break: break-word'.
-        - No invisible elements.
-        `;
+YOUR STYLE GUIDE:
+${agent.styleGuide}
 
-        // 4. Inject Environment Constraints
+CORE CONSTRAINTS:
+- Output format: JSON Array of UIElement objects only.
+- Use 'display: flex' for layout by default, unless Grid is advised.
+- Text: 'word-break: break-word'.
+- No invisible elements.
+`;
+        
+        // Add theme info
+        const theme = AGENT_THEMES[expertMode] || AGENT_THEMES['landing'];
+        instruction += `
+THEME COLORS:
+- Primary: ${theme.primary}
+- Background: ${theme.background}
+- Surface: ${theme.surface}
+- Text: ${theme.text}
+- Accent: ${theme.accent}
+`;
+        
         if (isLocal) {
             instruction += `
 [ENV: LOCAL - OLLAMA MODE]
-CRITICAL: You are running on a LOCAL model with limited capacity. Follow these STRICT rules:
-
-1. USE EXACT TEMPLATES: If a skill/template is specified, you MUST follow it exactly. Copy the structure precisely.
-2. SIMPLE STRUCTURES: Use only basic flex layouts. Avoid complex grids unless explicitly requested.
-3. EXACT NUMBERS: All width, height, padding, margin must be exact integers (no calculations).
-4. LIMITED DEPTH: Maximum 3 levels of nesting (parent → child → grandchild).
-5. BASIC COLORS: Use only simple hex colors (#ffffff, #000000, #3b82f6) or rgba with 0-1 opacity.
-6. NO ADVANCED CSS: No gradients, no backdrop-filter, no complex animations.
-7. MANDATORY FIELDS: Every element MUST have: type, name, style (with display, width, height), props (if needed).
-8. VALIDATION: Before outputting, verify every number is an integer without 'px' suffix.
-
-EXAMPLE of correct simple structure:
-{
-  "type": "container",
-  "name": "Hero",
-  "style": { "display": "flex", "width": 800, "height": 400, "padding": 40 },
-  "children": [
-    { "type": "text", "name": "Title", "props": { "text": "Hello" }, "style": { "fontSize": 32 } }
-  ]
-}
+CRITICAL: You are running on a LOCAL model. Follow these STRICT rules:
+1. Use EXACT template if skill specified
+2. SIMPLE layouts only
+3. Numbers only (no "px" suffixes)
+4. Max 3 nesting levels
+5. Valid JSON array output
 `;
         } else {
-            instruction += `\n[ENV: CLOUD] Use advanced CSS (gradients, backdrop-filter, absolute positioning) for high fidelity.`;
+            instruction += `\n[ENV: CLOUD] Use advanced CSS (gradients, backdrop-filter) for high fidelity.`;
         }
-
-        // 5. Inject Design System
+        
+        // Design System
         instruction += `\n[DESIGN SYSTEM: ${lib.toUpperCase()}]`;
-        if (lib === 'shadcn') instruction += ` Use 1px borders (#E4E4E7), 6px radius, Inter font.`;
-        if (lib === 'html-tailwind' && expertMode === 'hud') instruction += ` Use 1px borders, 0px radius, Monospace font for HUD style.`;
-
-        // 6. Inject Grid Master Advice (The "Brain" of the operation)
+        
+        // Grid Master
         if (layoutAdvice) {
-            instruction += `\n\n[>>> GRID MASTER PROTOCOL ACTIVE <<<]
-            The Grid Master has pre-calculated the optimal layout mathematics for this ${width}x${height} canvas.
-            YOU MUST FOLLOW THESE STRUCTURAL RULES:
-            
-            ${layoutAdvice}
-            
-            Apply these grid/flex values strictly to your main containers.
-            `;
+            instruction += `\n\n[>>> GRID MASTER PROTOCOL <<<]\n${layoutAdvice}\n`;
         }
-
-        // 7. Inject Requested Skill (if any)
+        
+        // Skill
         if (requiredSkillId) {
             const skill = SKILL_REGISTRY.find(s => s.id === requiredSkillId);
             if (skill) {
-                const skillStructureStr = JSON.stringify(skill.structure, null, 2);
-                
-                instruction += `
-
-[REQUIRED SKILL: ${skill.name.toUpperCase()}]
-Description: ${skill.description}
-INSTRUCTION: ${skill.instruction}
-
-${isLocal ? `
-⚠️  LOCAL MODEL - STRICT TEMPLATE COMPLIANCE REQUIRED ⚠️
-You MUST follow this template EXACTLY. Copy the structure below and ONLY change:
-1. The text content in props.text and props.label
-2. Colors in style properties (keep the same format)
-
-DO NOT:
-- Change the layout structure
-- Remove or add elements
-- Change the nesting hierarchy
-- Modify spacing values
-` : ''}
-
-MANDATORY TEMPLATE STRUCTURE - USE AS-IS:
-${skillStructureStr}
-
-${isLocal ? `
-RULES FOR LOCAL MODEL:
-1. Output MUST match the template structure above exactly
-2. Keep all style values in the same format
-3. Only modify text content, not structure
-4. Ensure valid JSON output
-` : 'IMPORTANT: Use the following JSON Skeleton as the strict basis for your response. Populate content within it.'}
-`;
+                instruction += `\n[REQUIRED SKILL: ${skill.name.toUpperCase()}]\n${skill.instruction}\n`;
             }
         }
-
-        // 8. Add Strict Validation Rules
+        
+        // Validation Rules
         instruction += `
-
 ## STRICT VALIDATION RULES
-1. ALL CSS properties MUST use camelCase (backgroundColor, justifyContent, flexDirection, alignItems). NEVER use kebab-case (background-color, justify-content, flex-direction).
+1. ALL CSS properties MUST use camelCase
 2. ALL numeric style values must be integers (NOT strings like '100px')
 3. ALL color values must be valid hex (#FFFFFF) or rgba() format
 4. Container elements MUST have: display, width, height
-5. Text elements MUST have: fontSize (number), color
-6. NO undefined or null values in output
-7. Element types MUST be one of: page, section, container, text, button, grid, rectangle, circle, box, frame, image
-`;
+5. NO undefined or null values in output
+6. Element types MUST be one of: page, section, container, text, button, grid, rectangle, circle, box, frame, image
 
-        // 9. Output Schema Reminder - EXACT TYPE MATCH
-        instruction += `
-
-## EXACT OUTPUT SCHEMA - MUST MATCH UIElement INTERFACE
-
-Generate a JSON Array of UIElement objects with these EXACT properties:
-
-interface UIElement {
-  type: 'page' | 'section' | 'container' | 'text' | 'button' | 'grid' | 'rectangle' | 'circle' | 'box' | 'frame' | 'image';
-  name: string; // Descriptive name (e.g., "Hero Section", "Primary Button")
-  props: {
-    // For 'text' type: { text: "content" }
-    // For 'button' type: { label: "Click Me" }
-    // For 'image' type: { src: "url", alt: "description" }
-    animation?: {
-      type: 'none' | 'fadeIn' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'zoomIn' | 'zoomOut' | 'bounce' | 'pulse' | 'spin';
-      duration: number; // seconds (e.g., 0.5)
-      delay: number; // seconds (e.g., 0)
-      infinite: boolean; // true/false
-      ease: 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'ease-in-out';
-    }
-  };
-  style: {
-    // Layout
-    display?: 'flex' | 'grid' | 'block' | 'none';
-    flexDirection?: 'row' | 'column';
-    flexWrap?: 'wrap' | 'nowrap';
-    justifyContent?: 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around';
-    alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch';
-    gap?: number; // pixels (e.g., 24)
-
-    // Position & Size (USE NUMBERS, NOT STRINGS WITH 'px')
-    position?: 'absolute' | 'relative' | 'fixed' | 'sticky';
-    left?: number; // pixels
-    top?: number; // pixels
-    right?: number; // pixels
-    bottom?: number; // pixels
-    width?: number | string; // pixels OR '100%' | 'auto' | 'max-content'
-    height?: number | string; // pixels OR '100%' | 'auto'
-    minWidth?: number;
-    minHeight?: number;
-    maxWidth?: number;
-    maxHeight?: number;
-
-    // Spacing (USE NUMBERS)
-    padding?: number; // pixels
-    paddingTop?: number;
-    paddingRight?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    margin?: number; // pixels
-    marginTop?: number;
-    marginRight?: number;
-    marginBottom?: number;
-    marginLeft?: number;
-
-    // Appearance
-    backgroundColor?: string; // hex (#1a1a1a) or rgba
-    color?: string; // text color
-    opacity?: number; // 0-1
-
-    // Border
-    border?: string; // e.g., "1px solid rgba(255,255,255,0.1)"
-    borderRadius?: number; // pixels
-    borderWidth?: number;
-    borderColor?: string;
-    borderStyle?: 'solid' | 'dashed' | 'dotted' | 'none';
-
-    // Typography (USE NUMBERS FOR SIZES)
-    fontSize?: number; // pixels (e.g., 16)
-    fontWeight?: number | string; // 400, 600, 'bold'
-    fontFamily?: string;
-    lineHeight?: number | string; // 1.5 or '24px'
-    letterSpacing?: number | string;
-    textAlign?: 'left' | 'center' | 'right' | 'justify';
-    textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
-    textDecoration?: 'none' | 'underline' | 'line-through';
-
-    // Effects
-    boxShadow?: string;
-    backdropFilter?: string;
-    filter?: string;
-    transform?: string;
-
-    // Layout extras
-    overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
-    zIndex?: number;
-    cursor?: string;
-    boxSizing?: 'border-box' | 'content-box';
-
-    // Grid (if display: 'grid')
-    gridTemplateColumns?: string; // e.g., "repeat(12, 1fr)"
-    gridTemplateRows?: string;
-    gridColumn?: string; // e.g., "span 2"
-    gridRow?: string;
-  };
-  children?: UIElement[]; // Nested elements
-  isExpanded?: boolean; // true for containers with children
-  isLocked?: boolean; // false by default
-}
-
-## TYPE-SPECIFIC REQUIREMENTS
-
-### 'text' elements MUST have:
-- props.text: "actual text content"
-- style.fontSize: number (e.g., 16)
-- style.color: string (e.g., "#ffffff")
-
-### 'button' elements MUST have:
-- props.label: "Button Text"
-- style.padding: number
-- style.backgroundColor: string
-- style.borderRadius: number
-
-### 'image' elements MUST have:
-- props.src: "image-url-or-placeholder"
-- props.alt: "description"
-- style.objectFit: 'cover' | 'contain' | 'fill'
-
-### 'section' | 'container' | 'box' | 'frame' elements MUST have:
-- style.display: 'flex' or 'grid'
-- style.width: number or '100%'
-- style.height: number or 'auto'
-- style.boxSizing: 'border-box'
-
-### 'circle' elements:
-- style.borderRadius: 9999 (or large number for perfect circle)
-- style.width and style.height should be equal
-
-## CRITICAL RULES
-1. NO 'px' suffixes on numbers - use 100, not "100px"
-2. ALL style properties must use camelCase (backgroundColor, not background-color)
-3. Colors must be valid: hex (#ffffff) or rgba/rgb strings
-4. Booleans must be true/false (not "true"/"false" strings)
-5. Arrays must be actual arrays [], not objects {}
-6. Children must be UIElement objects following this same schema
-`;
-
-        return instruction;
-    }
-
-    // Generate ultra-optimized prompt for local models (Ollama)
-    static generateLocalOptimizedPrompt(
-        expertMode: ExpertMode,
-        projectSettings: ProjectSettings,
-        targetDimensions: { width: number; height: number },
-        requiredSkillId?: string | null,
-        hardwareLevel: string = 'ultra-light'
-    ): string {
-        const optimizations = getLocalOptimizations(hardwareLevel);
-        
-        // Load the agent
-        const agent = AGENT_REGISTRY.find(a => a.id === expertMode) || AGENT_REGISTRY[0];
-        
-        let instruction = `${optimizations.shortPrefix}\n\n`;
-        
-        // Container info - minimal
-        const { width, height } = targetDimensions;
-        instruction += `Container: ${width}x${height}px.\n`;
-        
-        // Agent context - brief
-        instruction += `Style: ${agent.styleGuide.substring(0, 100)}...\n`;
-        
-        // Add template if specified (pre-fetched, no API call)
-        if (requiredSkillId) {
-            const template = getTemplateStructure(requiredSkillId);
-            if (template) {
-                // Output template structure as example
-                instruction += `\nTemplate: ${JSON.stringify(template)}\n`;
-                instruction += `Follow this exact structure. Only change text content.\n`;
-            }
-        }
-        
-        // Add minimal validation rules
-        instruction += `
-Rules:
-- Numbers only, no "px" (use 100 not "100px")
-- Valid JSON array
-- No comments or extra text
-- Max 3 nesting levels
-- Simple colors only (#fff, #000, #3b82f6)
+## OUTPUT SCHEMA
+Generate JSON Array of UIElement objects.
 `;
         
         return instruction;
