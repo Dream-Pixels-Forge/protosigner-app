@@ -4,6 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { UIElement, ProjectSettings, AIProvider, ExpertMode } from '../types';
 import { sleep, insertNodeIntoParent, updateElementRecursively } from './utils';
 import { Orchestrator } from '../features/ai/orchestrator';
+import { ensureImageSource } from './imageUtils';
 
 interface UseAIProps {
     elements: UIElement[];
@@ -55,11 +56,16 @@ export const useAI = ({
                 transition: 'opacity 0.5s ease-out'
             };
 
+            // Ensure image elements have a source
+            const processedProps = type === 'image' && (!props || !props.src) 
+                ? { ...props, src: `/assets/1 (${Math.floor(Math.random() * 10) + 1}).jpg`, alt: props?.alt || 'Image' }
+                : props || {};
+
             const newElement: UIElement = {
                 id: newId, 
                 type: type || 'container', 
                 name: name || 'AI Component', 
-                props: props || {},
+                props: processedProps,
                 style: safeStyle, 
                 children: [], 
                 isExpanded: true, 
@@ -69,8 +75,23 @@ export const useAI = ({
             await sleep(80);
             setElements(prev => updateElementRecursively(prev, newId, (el) => ({ ...el, style: { ...el.style, opacity: 1 } })));
             
+            // Process children with image fallback
             if (children && children.length > 0) {
-                await buildUITree(newId, children);
+                // Ensure all children images have sources
+                const processedChildren = children.map((child: any) => {
+                    if (child.type === 'image' && (!child.props || !child.props.src)) {
+                        return {
+                            ...child,
+                            props: {
+                                ...child.props,
+                                src: `/assets/1 (${Math.floor(Math.random() * 10) + 1}).jpg`,
+                                alt: child.props?.alt || 'Image'
+                            }
+                        };
+                    }
+                    return child;
+                });
+                await buildUITree(newId, processedChildren);
             }
             await sleep(40);
         }

@@ -40,7 +40,29 @@ export class Orchestrator {
 
         // 4. Inject Environment Constraints
         if (isLocal) {
-            instruction += `\n[ENV: LOCAL] Optimize for minimal token usage. Standard HTML/CSS only.`;
+            instruction += `
+[ENV: LOCAL - OLLAMA MODE]
+CRITICAL: You are running on a LOCAL model with limited capacity. Follow these STRICT rules:
+
+1. USE EXACT TEMPLATES: If a skill/template is specified, you MUST follow it exactly. Copy the structure precisely.
+2. SIMPLE STRUCTURES: Use only basic flex layouts. Avoid complex grids unless explicitly requested.
+3. EXACT NUMBERS: All width, height, padding, margin must be exact integers (no calculations).
+4. LIMITED DEPTH: Maximum 3 levels of nesting (parent → child → grandchild).
+5. BASIC COLORS: Use only simple hex colors (#ffffff, #000000, #3b82f6) or rgba with 0-1 opacity.
+6. NO ADVANCED CSS: No gradients, no backdrop-filter, no complex animations.
+7. MANDATORY FIELDS: Every element MUST have: type, name, style (with display, width, height), props (if needed).
+8. VALIDATION: Before outputting, verify every number is an integer without 'px' suffix.
+
+EXAMPLE of correct simple structure:
+{
+  "type": "container",
+  "name": "Hero",
+  "style": { "display": "flex", "width": 800, "height": 400, "padding": 40 },
+  "children": [
+    { "type": "text", "name": "Title", "props": { "text": "Hello" }, "style": { "fontSize": 32 } }
+  ]
+}
+`;
         } else {
             instruction += `\n[ENV: CLOUD] Use advanced CSS (gradients, backdrop-filter, absolute positioning) for high fidelity.`;
         }
@@ -66,13 +88,38 @@ export class Orchestrator {
         if (requiredSkillId) {
             const skill = SKILL_REGISTRY.find(s => s.id === requiredSkillId);
             if (skill) {
-                instruction += `\n\n[REQUIRED SKILL: ${skill.name.toUpperCase()}]
-                Description: ${skill.description}
-                INSTRUCTION: ${skill.instruction}
+                const skillStructureStr = JSON.stringify(skill.structure, null, 2);
                 
-                IMPORTANT: Use the following JSON Skeleton as the strict basis for your response. Populate content within it.
-                SKELETON: ${JSON.stringify(skill.structure)}
-                `;
+                instruction += `
+
+[REQUIRED SKILL: ${skill.name.toUpperCase()}]
+Description: ${skill.description}
+INSTRUCTION: ${skill.instruction}
+
+${isLocal ? `
+⚠️  LOCAL MODEL - STRICT TEMPLATE COMPLIANCE REQUIRED ⚠️
+You MUST follow this template EXACTLY. Copy the structure below and ONLY change:
+1. The text content in props.text and props.label
+2. Colors in style properties (keep the same format)
+
+DO NOT:
+- Change the layout structure
+- Remove or add elements
+- Change the nesting hierarchy
+- Modify spacing values
+` : ''}
+
+MANDATORY TEMPLATE STRUCTURE - USE AS-IS:
+${skillStructureStr}
+
+${isLocal ? `
+RULES FOR LOCAL MODEL:
+1. Output MUST match the template structure above exactly
+2. Keep all style values in the same format
+3. Only modify text content, not structure
+4. Ensure valid JSON output
+` : 'IMPORTANT: Use the following JSON Skeleton as the strict basis for your response. Populate content within it.'}
+`;
             }
         }
 
