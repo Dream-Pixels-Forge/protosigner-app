@@ -37,9 +37,33 @@ export type AIProvider = 'Google' | 'OpenRouter' | 'Ollama';
 export type SettingsTab = 'models' | 'connections' | 'sync' | 'advanced' | 'billing';
 
 // New Expert Types
-export type ExpertMode = 'landing' | 'full-stack' | 'hud' | 'dashboard' | 'os' | 'mobile';
+export type ExpertMode = 'landing' | 'full-stack' | 'hud' | 'dashboard' | 'os' | 'mobile' | 'grid-master';
 export type EnvironmentMode = 'cloud' | 'local';
 export type ComponentLibrary = 'html-tailwind' | 'shadcn' | 'radix' | 'chakra' | 'mui' | 'custom';
+
+export interface SubAgent {
+  id: ExpertMode;
+  name: string;
+  role: string;
+  icon: string;
+  description: string;
+  defaultSkills: string[];
+  styleGuide: string;
+}
+
+// Recursive partial type for skill structures (allows nested elements without ids)
+export type SkillElement = Partial<Omit<UIElement, 'children'>> & {
+  children?: SkillElement[];
+};
+
+export interface Skill {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  instruction: string;
+  structure: SkillElement;
+}
 
 export interface AIModel {
   id: string;
@@ -85,6 +109,8 @@ export interface ProjectSettings {
   snapToGrid: boolean;
   gridSize: number;
   componentLibrary: ComponentLibrary;
+  enableGridMaster: boolean;
+  autoSkillMode: boolean;
 }
 
 export interface MCPServer {
@@ -190,6 +216,7 @@ export interface EditorContextType {
   isGenerating: boolean;
   generateContent: (prompt: string, targetId?: string, imageContext?: string, templateStructure?: any, createNewPage?: boolean) => Promise<void>;
   generateStyles: (prompt: string, targetId?: string, imageContext?: string) => Promise<void>;
+  refineSelectionLayout: () => Promise<void>;
   mcpStatus: MCPStatus;
   
   // Canvas Tools

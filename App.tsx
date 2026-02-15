@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { EditorProvider, useEditor } from './context/EditorContext';
+import { ConsoleLogProvider, useConsoleLog } from './context/ConsoleLogContext';
 import { Header } from './features/layout/Header';
 import { LayersPanel } from './features/layers/LayersPanel';
 import { PropertiesPanel } from './features/properties/PropertiesPanel';
@@ -20,6 +21,10 @@ const Footer: React.FC = () => {
         toggleSettingsModal,
         toggleShortcutsModal
     } = useEditor();
+    
+    const { getRecentLogs, logs, clearLogs } = useConsoleLog();
+    const [showLogPanel, setShowLogPanel] = useState(false);
+    const recentLog = getRecentLogs(1)[0];
     
     return (
         <footer className="h-8 bg-panel-dark border-t border-white/5 px-4 flex items-center justify-between text-[10px] text-slate-500 shrink-0 z-40 relative bg-black">
@@ -86,6 +91,70 @@ const Footer: React.FC = () => {
                 </div>
             </div>
             
+            {/* Console Logs Display */}
+            <div className="flex-1 mx-4 min-w-0">
+                <div 
+                    className="flex items-center gap-2 bg-black/30 rounded px-3 py-1 border border-white/5 cursor-pointer hover:bg-black/50 transition-colors"
+                    onClick={() => setShowLogPanel(!showLogPanel)}
+                    title="Click to toggle log panel"
+                >
+                    <span className="material-icons text-[10px] text-slate-400">terminal</span>
+                    {recentLog ? (
+                        <span className={`truncate font-mono text-[10px] ${
+                            recentLog.level === 'error' ? 'text-red-400' :
+                            recentLog.level === 'warn' ? 'text-yellow-400' :
+                            recentLog.level === 'info' ? 'text-blue-400' :
+                            'text-slate-400'
+                        }`}>
+                            {recentLog.source && `[${recentLog.source}] `}
+                            {recentLog.message}
+                        </span>
+                    ) : (
+                        <span className="text-slate-600 text-[10px]">No recent logs</span>
+                    )}
+                    {logs.length > 0 && (
+                        <span className="text-[9px] text-slate-600 ml-1">({logs.length})</span>
+                    )}
+                </div>
+                
+                {/* Expandable Log Panel */}
+                {showLogPanel && (
+                    <div className="absolute bottom-8 right-4 left-4 bg-black/95 border border-white/10 rounded-lg shadow-2xl max-h-48 overflow-y-auto z-50">
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-white/5">
+                            <span className="text-[10px] font-bold text-white">Console Logs</span>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); clearLogs(); }}
+                                className="text-[10px] text-red-400 hover:text-red-300"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <div className="p-2 space-y-1">
+                            {logs.length === 0 ? (
+                                <span className="text-[10px] text-slate-600 italic">No logs</span>
+                            ) : (
+                                logs.slice(0, 20).map((log) => (
+                                    <div key={log.id} className="text-[9px] font-mono flex items-start gap-2">
+                                        <span className="text-slate-600 whitespace-nowrap">
+                                            {log.timestamp.toLocaleTimeString()}
+                                        </span>
+                                        <span className={`${
+                                            log.level === 'error' ? 'text-red-400' :
+                                            log.level === 'warn' ? 'text-yellow-400' :
+                                            log.level === 'info' ? 'text-blue-400' :
+                                            'text-slate-300'
+                                        }`}>
+                                            {log.source && `[${log.source}] `}
+                                            {log.message}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+            
             <div className="flex items-center gap-4">
                 <button 
                     onClick={toggleShortcutsModal}
@@ -118,19 +187,21 @@ const App: React.FC = () => {
 
   return (
     <EditorProvider>
-      <div className="h-full flex flex-col overflow-hidden bg-background-light dark:bg-canvas-dark animate-in fade-in duration-500">
-        <Header />
-        <div className="flex flex-1 overflow-hidden">
-          <LayersPanel />
-          <Canvas />
-          <PropertiesPanel />
+      <ConsoleLogProvider>
+        <div className="h-full flex flex-col overflow-hidden bg-background-light dark:bg-canvas-dark animate-in fade-in duration-500">
+          <Header />
+          <div className="flex flex-1 overflow-hidden">
+            <LayersPanel />
+            <Canvas />
+            <PropertiesPanel />
+          </div>
+          <Footer />
+          <SettingsModal />
+          <CodeExportModal />
+          <ShortcutsModal />
+          <HistoryModal />
         </div>
-        <Footer />
-        <SettingsModal />
-        <CodeExportModal />
-        <ShortcutsModal />
-        <HistoryModal />
-      </div>
+      </ConsoleLogProvider>
     </EditorProvider>
   );
 };

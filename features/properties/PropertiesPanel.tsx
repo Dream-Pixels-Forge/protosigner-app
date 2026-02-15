@@ -22,6 +22,8 @@ export const PropertiesPanel: React.FC = () => {
     updateElementStyle, 
     toggleElementLock, 
     renameElement,
+    refineSelectionLayout, // New Hook Function
+    isGenerating
   } = useEditor();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +78,7 @@ export const PropertiesPanel: React.FC = () => {
   // Render Canvas Settings if no element selected
   if (!selectedElement) {
     return (
-      <aside className="w-80 glass border-l-0 border-l-white/5 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+      <aside className="w-96 glass-right flex flex-col shrink-0 overflow-y-auto custom-scrollbar z-20">
         <div className="p-4 border-b border-white/5 bg-white/5">
            <h2 className="text-sm font-bold text-white flex items-center gap-2">
              <span className="material-icons text-white">art_track</span>
@@ -90,7 +92,37 @@ export const PropertiesPanel: React.FC = () => {
                 <PageSize />
             </PropertySection>
 
-            <PropertySection title="AI Design System" icon="palette">
+            <PropertySection title="AI Intelligence" icon="psychology">
+                <div className="space-y-4">
+                    <div>
+                        <div className="flex items-center justify-between mb-1">
+                             <Label icon="grid_4x4">Grid Master (GM)</Label>
+                             <Toggle 
+                                checked={projectSettings.enableGridMaster} 
+                                onChange={(v) => updateProjectSettings({ enableGridMaster: v })} 
+                             />
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-tight">
+                            Enables a 2-step generation process where the GM pre-calculates strict layout math before the agent builds components.
+                        </p>
+                    </div>
+
+                    <div>
+                        <div className="flex items-center justify-between mb-1">
+                             <Label icon="auto_fix_high">Auto-Skill Mode</Label>
+                             <Toggle 
+                                checked={projectSettings.autoSkillMode} 
+                                onChange={(v) => updateProjectSettings({ autoSkillMode: v })} 
+                             />
+                        </div>
+                        <p className="text-[10px] text-slate-500 leading-tight">
+                            Automatically selects the best component skill/template based on your prompt, overriding manual selections if better.
+                        </p>
+                    </div>
+                </div>
+            </PropertySection>
+
+            <PropertySection title="Design System" icon="palette">
                 <div className="space-y-2">
                     <Label>Component Library</Label>
                     <SelectInput
@@ -102,6 +134,7 @@ export const PropertiesPanel: React.FC = () => {
                             { label: 'Chakra UI (Teal/Gray)', value: 'chakra' },
                             { label: 'Material UI (MUI)', value: 'mui' },
                             { label: 'Custom System', value: 'custom' },
+                            { label: 'Sci-Fi HUD', value: 'hud' },
                         ]}
                         onChange={(v) => updateProjectSettings({ componentLibrary: v as any })}
                     />
@@ -189,7 +222,7 @@ export const PropertiesPanel: React.FC = () => {
   const anim = getAnimation();
 
   return (
-    <aside className="w-80 glass border-l-0 border-l-white/5 flex flex-col shrink-0 overflow-hidden">
+    <aside className="w-96 glass-right flex flex-col shrink-0 overflow-hidden z-20">
       {/* Header */}
       <div className="p-4 border-b border-white/5 bg-white/[0.02]">
         <div className="flex items-center justify-between mb-1">
@@ -372,6 +405,16 @@ export const PropertiesPanel: React.FC = () => {
                     }}
                 />
             </div>
+
+            {/* AI AUTO LAYOUT OPTIMIZER BUTTON */}
+            <button
+                onClick={refineSelectionLayout}
+                disabled={isGenerating}
+                className={`w-full flex items-center justify-center gap-2 py-2 mb-4 rounded-lg text-xs font-bold transition-all border ${isGenerating ? 'opacity-50 cursor-wait bg-slate-700 border-transparent text-slate-400' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/20 hover:text-white'}`}
+            >
+                <span className={`material-icons text-[14px] ${isGenerating ? 'animate-spin' : ''}`}>auto_fix_high</span>
+                {isGenerating ? 'Optimizing...' : 'AI Auto-Layout (GM)'}
+            </button>
 
             {isFlex && (
                 <div className="space-y-4 animate-in slide-in-from-left-2 duration-200">

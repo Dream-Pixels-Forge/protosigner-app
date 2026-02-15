@@ -9,24 +9,49 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <style>
-      html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #030303; }
+      html, body, #root { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #0a0a0a; }
       body { font-family: 'Space Grotesk', sans-serif; }
       .canvas-grid {
-        background-color: #030303;
+        background-color: #0a0a0a;
         background-size: 40px 40px;
-        background-image: radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px);
+        background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
       }
+      /* ENHANCED: Glass panels with better elevation */
       .glass {
-        background: rgba(10, 10, 10, 0.6);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
+        background: rgba(20, 20, 20, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.08);
       }
+
+      /* NEW: Left panel - inner shadow on right edge */
+      .glass-left {
+        background: rgba(20, 20, 20, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 
+          inset -1px 0 0 rgba(255, 255, 255, 0.05),
+          4px 0 30px rgba(0, 0, 0, 0.5);
+      }
+
+      /* NEW: Right panel - inner shadow on left edge */
+      .glass-right {
+        background: rgba(20, 20, 20, 0.85);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-left: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 
+          inset 1px 0 0 rgba(255, 255, 255, 0.05),
+          -4px 0 30px rgba(0, 0, 0, 0.5);
+      }
+
+      /* ENHANCED: High-contrast glass for overlays */
       .glass-high {
-        background: rgba(20, 20, 20, 0.8);
+        background: rgba(25, 25, 25, 0.9);
         backdrop-filter: blur(24px);
         -webkit-backdrop-filter: blur(24px);
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.15);
       }
       .bg-checkerboard {
         background-color: #1a1a1a;

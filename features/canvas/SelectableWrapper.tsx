@@ -84,9 +84,10 @@ export const SelectableWrapper: React.FC<SelectableWrapperProps> = ({
     // Reset move flag on new interaction
     hasMovedRef.current = false;
 
-    // If not selected, select it first
+    // If not selected, select it first. We don't start drag immediately on unselected items to prevent accidental moves.
     if (!isSelected) {
         onSelect(id);
+        return;
     }
     
     // Disable dragging for flow children (flex items) unless it's a resize handle
@@ -244,6 +245,7 @@ export const SelectableWrapper: React.FC<SelectableWrapperProps> = ({
   } : {};
 
   const wrapperStyle: React.CSSProperties = {
+      boxSizing: 'border-box', // CRITICAL: Fix for layout overlaps
       ...cssStyles,
       ...animationStyle,
       width: localSize.width,
@@ -286,7 +288,10 @@ export const SelectableWrapper: React.FC<SelectableWrapperProps> = ({
         {children}
         
         {isSelected && (
-            <div className={`absolute -inset-[1px] border ${isLocked ? 'border-red-500/50' : 'border-white'} pointer-events-none z-30`}>
+            <div 
+                className={`absolute -inset-[1px] border ${isLocked ? 'border-red-500/50' : 'border-white'} pointer-events-none z-30`}
+                data-html2canvas-ignore="true"
+            >
                 <div className={`absolute -top-6 left-0 ${isLocked ? 'bg-red-500' : 'bg-white'} ${isLocked ? 'text-white' : 'text-black'} text-[9px] px-1.5 py-0.5 rounded-sm font-bold flex items-center gap-1 uppercase tracking-wider shadow-sm pointer-events-auto select-none whitespace-nowrap`}>
                     <span className="material-icons text-[10px]">{isLocked ? 'lock' : 'drag_indicator'}</span> 
                     {name}
@@ -314,7 +319,10 @@ export const SelectableWrapper: React.FC<SelectableWrapperProps> = ({
         )}
         
         {!isSelected && (
-            <div className="absolute inset-0 border border-transparent group-hover:border-white/20 pointer-events-none transition-colors z-20 border-dashed"></div>
+            <div 
+                className="absolute inset-0 border border-transparent group-hover:border-white/20 pointer-events-none transition-colors z-20 border-dashed"
+                data-html2canvas-ignore="true"
+            ></div>
         )}
     </div>
   );

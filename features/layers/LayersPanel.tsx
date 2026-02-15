@@ -11,10 +11,7 @@ interface LayerItemProps {
   selectedId: string | null;
   selectedIds: string[];
   onSelect: (id: string, multi: boolean) => void;
-  onToggleLock: (id: string) => void;
   onToggleExpand: (id: string) => void;
-  onToggleVisibility: (id: string) => void;
-  onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
   onDrop: (dragId: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
 }
@@ -25,10 +22,7 @@ const LayerItem: React.FC<LayerItemProps> = ({
     selectedId, 
     selectedIds,
     onSelect, 
-    onToggleLock, 
     onToggleExpand, 
-    onToggleVisibility,
-    onDelete, 
     onRename,
     onDrop
 }) => {
@@ -126,6 +120,7 @@ const LayerItem: React.FC<LayerItemProps> = ({
   const isPrimarySelected = selectedId === element.id;
   const isExpanded = element.isExpanded !== false; 
   const isHidden = element.style?.display === 'none';
+  const isLocked = element.isLocked;
 
   return (
     <div className={`select-none ${isHidden ? 'opacity-50' : 'opacity-100'}`}>
@@ -142,17 +137,17 @@ const LayerItem: React.FC<LayerItemProps> = ({
           onSelect(element.id, multi);
         }}
         className={`
-          group flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer transition-all text-xs mb-0.5 relative
+          group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-all text-sm mb-0.5 relative
           ${isPrimarySelected ? 'bg-white text-black font-semibold shadow-lg shadow-white/5' : isSelected ? 'bg-white/10 text-white' : 'hover:bg-white/5 text-slate-400 hover:text-slate-200'}
         `}
-        style={{ paddingLeft: `${depth * 10 + 8}px` }}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
         {dragOverPos === 'top' && <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500 pointer-events-none z-50"></div>}
         {dragOverPos === 'bottom' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 pointer-events-none z-50"></div>}
         {dragOverPos === 'center' && <div className="absolute inset-0 bg-blue-500/20 border border-blue-500 rounded pointer-events-none z-50"></div>}
 
         <span 
-            className={`material-icons text-[12px] cursor-pointer hover:bg-white/10 rounded ${isSelected ? 'text-current' : 'text-slate-600 group-hover:text-white'} ${!hasChildren ? 'opacity-0' : ''}`}
+            className={`material-icons text-[14px] cursor-pointer hover:bg-white/10 rounded ${isSelected ? 'text-current' : 'text-slate-600 group-hover:text-white'} ${!hasChildren ? 'opacity-0' : ''}`}
             onClick={(e) => {
                 e.stopPropagation();
                 onToggleExpand(element.id);
@@ -161,7 +156,7 @@ const LayerItem: React.FC<LayerItemProps> = ({
             {isExpanded ? 'expand_more' : 'chevron_right'}
         </span>
         
-        <span className={`material-icons text-[12px] ${isSelected ? 'text-current' : 'text-slate-500'}`}>
+        <span className={`material-icons text-[14px] ${isSelected ? 'text-current' : 'text-slate-500'}`}>
           {iconMap[element.type] || 'circle'}
         </span>
         
@@ -173,11 +168,11 @@ const LayerItem: React.FC<LayerItemProps> = ({
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 onClick={(e) => e.stopPropagation()}
-                className="flex-1 bg-transparent border-b border-blue-500 outline-none min-w-0 px-1 text-xs font-medium"
+                className="flex-1 bg-transparent border-b border-blue-500 outline-none min-w-0 px-1 text-sm font-medium"
             />
         ) : (
             <span 
-                className="flex-1 truncate text-xs"
+                className="flex-1 truncate"
                 onDoubleClick={handleDoubleClick}
                 title="Double click to rename"
             >
@@ -185,28 +180,10 @@ const LayerItem: React.FC<LayerItemProps> = ({
             </span>
         )}
         
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button 
-                onClick={(e) => { e.stopPropagation(); onToggleVisibility(element.id); }}
-                className={`p-1 transition-colors ${isHidden ? 'text-slate-500' : isSelected ? 'text-black/50 hover:text-black' : 'text-slate-500 hover:text-white'}`}
-                title={isHidden ? "Show" : "Hide"}
-            >
-                <span className="material-icons text-[10px]">{isHidden ? 'visibility_off' : 'visibility'}</span>
-            </button>
-            <button 
-                onClick={(e) => { e.stopPropagation(); onToggleLock(element.id); }}
-                className={`p-1 transition-colors ${element.isLocked ? 'opacity-100 text-red-500' : isSelected ? 'text-black/50 hover:text-black' : 'text-slate-500 hover:text-white'}`}
-                title={element.isLocked ? "Unlock" : "Lock"}
-            >
-                <span className="material-icons text-[10px]">{element.isLocked ? 'lock' : 'lock_open'}</span>
-            </button>
-            <button 
-                onClick={(e) => { e.stopPropagation(); onDelete(element.id); }}
-                className={`p-1 transition-colors ${isSelected ? 'text-black/50 hover:text-red-600' : 'text-slate-500 hover:text-red-500'}`}
-                title="Delete Layer"
-            >
-                <span className="material-icons text-[10px]">delete</span>
-            </button>
+        {/* Status Indicators */}
+        <div className="flex items-center gap-1 pr-1 opacity-70">
+            {isLocked && <span className="material-icons text-[10px] text-slate-500">lock</span>}
+            {isHidden && <span className="material-icons text-[10px] text-slate-500">visibility_off</span>}
         </div>
       </div>
       
@@ -218,10 +195,7 @@ const LayerItem: React.FC<LayerItemProps> = ({
           selectedId={selectedId}
           selectedIds={selectedIds}
           onSelect={onSelect}
-          onToggleLock={onToggleLock}
           onToggleExpand={onToggleExpand}
-          onToggleVisibility={onToggleVisibility}
-          onDelete={onDelete}
           onRename={onRename}
           onDrop={onDrop}
         />
@@ -332,7 +306,6 @@ const COMPONENT_TEMPLATES = [
             ]
         }
     },
-    // ... existing templates ...
 ];
 
 export const LayersPanel: React.FC = () => {
@@ -355,8 +328,23 @@ export const LayersPanel: React.FC = () => {
   const filteredUploads = useMemo(() => uploadedImages.filter(img => img.name.toLowerCase().includes(searchQuery.toLowerCase())), [searchQuery, uploadedImages]);
   const filteredHud = useMemo(() => MOCK_HUD_ASSETS.filter(h => h.name.toLowerCase().includes(searchQuery.toLowerCase())), [searchQuery]);
 
+  // Find currently selected element for toolbar state
+  const selectedElement = useMemo(() => {
+      if (!selectedId) return null;
+      const find = (list: UIElement[]): UIElement | null => {
+          for (const item of list) {
+              if (item.id === selectedId) return item;
+              if (item.children) {
+                  const found = find(item.children);
+                  if (found) return found;
+              }
+          }
+          return null;
+      };
+      return find(elements);
+  }, [elements, selectedId]);
+
   // --- Helpers ---
-  // Deep clone a template and assign new IDs to everything
   const generateUniqueElement = (template: any): UIElement => {
     const newId = Math.random().toString(36).substr(2, 9);
     return {
@@ -390,7 +378,7 @@ export const LayersPanel: React.FC = () => {
   };
 
   return (
-    <aside className="w-64 glass border-r-0 border-r-white/5 flex flex-col shrink-0 h-full">
+    <aside className="w-72 glass-left flex flex-col shrink-0 h-full z-20">
       {/* Main Tabs */}
       <div className="flex border-b border-white/5">
         <button 
@@ -407,29 +395,62 @@ export const LayersPanel: React.FC = () => {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col">
+      <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
         {activeTab === 'layers' && (
             <div className="p-3 space-y-4">
                 <div>
-                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">
+                {/* Updated Toolbar Header */}
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 px-2 h-8">
                     <span>Structure</span>
-                    <div className="flex items-center gap-1">
-                        <span 
-                            className="material-icons text-sm cursor-pointer text-slate-500 hover:text-white transition-colors" 
-                            onClick={() => addElement('page')}
-                            title="New Page"
-                        >
-                            post_add
-                        </span>
-                        <span 
-                            className="material-icons text-sm cursor-pointer text-slate-500 hover:text-white transition-colors" 
-                            onClick={() => addElement('container')}
-                            title="New Container"
-                        >
-                            add
-                        </span>
+                    <div className="flex items-center gap-2">
+                        {/* Layer Actions (Visible when selected) */}
+                        <div className={`flex items-center gap-0.5 bg-white/5 rounded-lg p-0.5 border border-white/5 transition-all duration-200 ${selectedId ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                            <button 
+                                onClick={() => selectedId && toggleVisibility(selectedId)}
+                                className={`p-1 rounded hover:bg-white/10 transition-colors ${selectedElement?.style?.display === 'none' ? 'text-slate-500' : 'text-slate-300 hover:text-white'}`}
+                                title={selectedElement?.style?.display === 'none' ? "Show Layer" : "Hide Layer"}
+                            >
+                                <span className="material-icons text-[14px]">{selectedElement?.style?.display === 'none' ? 'visibility_off' : 'visibility'}</span>
+                            </button>
+                            <button 
+                                onClick={() => selectedId && toggleElementLock(selectedId)}
+                                className={`p-1 rounded hover:bg-white/10 transition-colors ${selectedElement?.isLocked ? 'text-red-400' : 'text-slate-300 hover:text-white'}`}
+                                title={selectedElement?.isLocked ? "Unlock Layer" : "Lock Layer"}
+                            >
+                                <span className="material-icons text-[14px]">{selectedElement?.isLocked ? 'lock' : 'lock_open'}</span>
+                            </button>
+                            <button 
+                                onClick={() => selectedId && deleteElement(selectedId)}
+                                className="p-1 rounded hover:bg-red-500/20 text-slate-300 hover:text-red-400 transition-colors"
+                                title="Delete Layer"
+                            >
+                                <span className="material-icons text-[14px]">delete</span>
+                            </button>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="w-px h-3 bg-white/10"></div>
+
+                        {/* Creation Actions */}
+                        <div className="flex items-center gap-1">
+                            <button 
+                                className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" 
+                                onClick={() => addElement('page')}
+                                title="New Page"
+                            >
+                                <span className="material-icons text-[16px]">post_add</span>
+                            </button>
+                            <button 
+                                className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors" 
+                                onClick={() => addElement('container')}
+                                title="New Container"
+                            >
+                                <span className="material-icons text-[16px]">add_box</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
+
                 <div className="space-y-0.5">
                     {elements.map(el => (
                     <LayerItem 
@@ -438,10 +459,7 @@ export const LayersPanel: React.FC = () => {
                         selectedId={selectedId} 
                         selectedIds={selectedIds}
                         onSelect={selectElement} 
-                        onToggleLock={toggleElementLock}
                         onToggleExpand={toggleElementExpand}
-                        onToggleVisibility={toggleVisibility}
-                        onDelete={deleteElement}
                         onRename={renameElement}
                         onDrop={reorderElement}
                     />
@@ -451,6 +469,7 @@ export const LayersPanel: React.FC = () => {
             </div>
         )}
 
+        {/* ... (Assets Tab Content preserved) ... */}
         {activeTab === 'assets' && (
             <div className="flex flex-col h-full">
                 <div className="p-3 pb-0 sticky top-0 bg-[#141414] z-10 border-b border-white/5 shadow-xl">

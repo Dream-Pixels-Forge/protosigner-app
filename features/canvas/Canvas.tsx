@@ -62,42 +62,42 @@ export const Canvas: React.FC = () => {
 
   // --- Pan & Zoom Logic ---
   
-  // Handle wheel events with passive: false
-  useEffect(() => {
-    const canvasElement = document.querySelector('main');
-    if (!canvasElement) return;
-
-    const handleWheelEvent = (e: WheelEvent) => {
+  const handleWheel = (e: React.WheelEvent) => {
+      // If we are scrolling inside a scrollable element (like the prompt box), don't zoom canvas
       if ((e.target as HTMLElement).closest('.custom-scrollbar')) return;
       if ((e.target as HTMLElement).tagName === 'TEXTAREA') return;
 
       e.preventDefault();
 
       if (e.ctrlKey || e.metaKey) {
-        const zoomSensitivity = 0.001;
-        const delta = -e.deltaY * zoomSensitivity;
-        const newZoom = Math.max(0.1, Math.min(5, zoom + delta));
-        
-        const rect = canvasElement.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        
-        const worldX = (mouseX - pan.x) / zoom;
-        const worldY = (mouseY - pan.y) / zoom;
-        
-        const newPanX = mouseX - worldX * newZoom;
-        const newPanY = mouseY - worldY * newZoom;
-        
-        setZoom(newZoom);
-        setPan({ x: newPanX, y: newPanY });
+          // ZOOM
+          const zoomSensitivity = 0.001;
+          const delta = -e.deltaY * zoomSensitivity;
+          const newZoom = Math.max(0.1, Math.min(5, zoom + delta));
+          
+          // Calculate mouse position relative to container
+          const rect = e.currentTarget.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+          
+          // Calculate world coordinates before zoom
+          // mouseX = panX + worldX * zoom
+          // worldX = (mouseX - panX) / zoom
+          const worldX = (mouseX - pan.x) / zoom;
+          const worldY = (mouseY - pan.y) / zoom;
+          
+          // Calculate new pan to keep world point under mouse
+          // newPanX = mouseX - worldX * newZoom
+          const newPanX = mouseX - worldX * newZoom;
+          const newPanY = mouseY - worldY * newZoom;
+          
+          setZoom(newZoom);
+          setPan({ x: newPanX, y: newPanY });
       } else {
-        setPan({ x: pan.x - e.deltaX, y: pan.y - e.deltaY });
+          // PAN
+          setPan({ x: pan.x - e.deltaX, y: pan.y - e.deltaY });
       }
-    };
-
-    canvasElement.addEventListener('wheel', handleWheelEvent, { passive: false });
-    return () => canvasElement.removeEventListener('wheel', handleWheelEvent);
-  }, [zoom, pan, setZoom, setPan]);
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
       if (activeTool === 'hand' || e.button === 1) { // Middle click also pans
@@ -184,18 +184,21 @@ export const Canvas: React.FC = () => {
   };
 
   return (
-    <main 
-        className={`flex-1 relative bg-canvas-dark flex items-center justify-center overflow-hidden ${activeTool === 'hand' || isPanning ? 'cursor-grab active:cursor-grabbing' : ''}`}
+    <main
+        className={`flex-1 relative flex items-center justify-center overflow-hidden ${activeTool === 'hand' || isPanning ? 'cursor-grab active:cursor-grabbing' : ''}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         style={{
+            // Canvas background - slightly lighter for better contrast with page
+            backgroundColor: projectSettings.darkMode ? '#0a0a0a' : '#f5f5f5',
             // Dynamic Grid Implementation
             backgroundSize: projectSettings.showGrid ? `${projectSettings.gridSize * zoom}px ${projectSettings.gridSize * zoom}px` : undefined,
-            backgroundImage: projectSettings.showGrid 
-                ? `radial-gradient(circle, rgba(255,255,255,0.07) ${1 * zoom}px, transparent 1px)` 
+            backgroundImage: projectSettings.showGrid
+                ? `radial-gradient(circle, rgba(255,255,255,0.06) ${1 * zoom}px, transparent 1px)`
                 : undefined,
             backgroundPosition: `${pan.x}px ${pan.y}px` // Sync grid with pan
         }}
@@ -216,37 +219,43 @@ export const Canvas: React.FC = () => {
             id="canvas-page-area"
             className={`
                 relative overflow-visible transition-all duration-500
-                ${projectSettings.darkMode ? 'bg-black' : 'bg-white'}
+                ${projectSettings.darkMode ? '' : 'bg-white'}
             `}
             style={{
                 ...rootElement.style,
-                
+
+                // Page background - elevated dark gray for better contrast with canvas
+                backgroundColor: projectSettings.darkMode ? '#141414' : undefined,
+
                 // --- FORCE EDITOR LAYOUT OVERRIDES ---
                 // We must override width/height/flex logic to ensure the canvas
                 // represents the PHYSICAL size of the page, not relative to screen.
-                
+
                 width: projectSettings.pageSize.width,
                 height: projectSettings.pageSize.height,
                 minWidth: projectSettings.pageSize.width, // Prevent flex shrinking
                 minHeight: projectSettings.pageSize.height, // Prevent flex shrinking
-                flexShrink: 0, 
+                flexShrink: 0,
                 flexGrow: 0,
                 boxSizing: 'border-box',
-                
+
                 // Force display flex to ensure visibility in canvas context even if switching was slow
-                display: 'flex', 
-                
+                display: 'flex',
+
                 // Page Border Logic
                 borderWidth: projectSettings.pageBorder.show ? projectSettings.pageBorder.width : 0,
                 borderColor: projectSettings.pageBorder.color,
                 borderStyle: projectSettings.pageBorder.style,
-                
-                // If page border is hidden, fallback to shadow for visibility against grid
-                boxShadow: projectSettings.pageBorder.show 
-                    ? 'none'
-                    : projectSettings.darkMode 
-                        ? '0 0 0 1px rgba(255,255,255,0.05), 0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
-                        : '0 0 0 1px rgba(0,0,0,0.05), 0 25px 50px -12px rgba(0, 0, 0, 0.2)'
+
+                // Optional border when no page border is shown (for extra definition)
+                border: projectSettings.darkMode && !projectSettings.pageBorder.show
+                    ? '1px solid rgba(255,255,255,0.08)'
+                    : undefined,
+
+                // ARTBOARD SHADOW: Multi-layer shadow for better definition
+                boxShadow: projectSettings.darkMode
+                    ? '0 0 0 1px rgba(255,255,255,0.08), 0 0 0 2px rgba(255,255,255,0.04), 0 50px 100px -20px rgba(0,0,0,0.8), 0 0 60px rgba(0,0,0,0.4)'
+                    : '0 0 0 1px rgba(0,0,0,0.08), 0 25px 50px -12px rgba(0,0,0,0.25)'
             }}
             onMouseDown={(e) => {
                 if (activeTool === 'hand') return;
@@ -273,18 +282,19 @@ export const Canvas: React.FC = () => {
             {/* 3. VIEWPORT OVERLAY (The "Above the Fold" indicator) */}
             {projectSettings.viewportBorder.show && (
                 <div 
+                    data-html2canvas-ignore="true"
                     className="absolute top-0 left-0 pointer-events-none z-[100]"
                     style={{
                         width: projectSettings.viewportSize.width,
                         height: projectSettings.viewportSize.height,
-                        // Changed to full border for clear aspect ratio visibility
-                        borderWidth: projectSettings.viewportBorder.width,
+                        borderBottomWidth: projectSettings.viewportBorder.width,
                         borderColor: projectSettings.viewportBorder.color,
                         borderStyle: projectSettings.viewportBorder.style,
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        opacity: 0.7
                     }}
                 >
-                    <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur font-mono">
+                    <div className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/50 text-white text-[10px] rounded backdrop-blur font-mono border border-white/10">
                         Viewport: {projectSettings.viewportSize.width}x{projectSettings.viewportSize.height}
                     </div>
                 </div>

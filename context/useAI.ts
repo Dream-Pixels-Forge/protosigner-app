@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { UIElement, ProjectSettings, AIProvider, ExpertMode } from '../types';
 import { sleep, insertNodeIntoParent, updateElementRecursively } from './utils';
-import { getSpectralSystemInstruction } from '../features/ai/prompts';
+import { Orchestrator } from '../features/ai/orchestrator';
 
 interface UseAIProps {
     elements: UIElement[];
@@ -76,70 +76,181 @@ export const useAI = ({
         }
     };
 
-    // Helper to fetch from Standard OpenAI Compatible API (OpenRouter/Ollama)
-    const fetchOpenAICompatible = async (
-        url: string, 
-        key: string, 
-        model: string, 
-        system: string, 
-        prompt: string,
-        jsonMode: boolean = false,
-        imageContext?: string
+    // --- CENTRALIZED AI QUERY HANDLER ---
+    const queryAI = async (
+        systemPrompt: string, 
+        userPrompt: string, 
+        imageContext?: string,
+        forceJson: boolean = false
     ): Promise<string> => {
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json'
-        };
-        if (key) headers['Authorization'] = `Bearer ${key}`;
         
-        // OpenRouter requires explicit referral
-        if (url.includes('openrouter')) {
-             headers['HTTP-Referer'] = 'https://protosigner.pro';
-             headers['X-Title'] = 'Protosigner';
-        }
+        // 1. Google GenAI
+        if (activeModelProvider === 'Google') {
+            const ai = new GoogleGenAI({ apiKey: googleApiKey });
+            
+            let contentsPayload: any = userPrompt;
+            if (imageContext) {
+                contentsPayload = {
+                    parts: [
+                        { text: userPrompt },
+                        { inlineData: { mimeType: 'image/png', data: imageContext.split(',')[1] } }
+                    ]
+                };
+            }
 
-        let userContent: any = prompt;
-        if (imageContext) {
-            userContent = [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: imageContext } }
-            ];
-        }
+            const response = await ai.models.generateContent({
+                model: activeModelId, 
+                contents: contentsPayload,
+                config: { 
+                    systemInstruction: systemPrompt,
+                    responseMimeType: forceJson ? 'application/json' : undefined 
+                }
+            });
+            return response.text || '';
+        } 
+        
+        // 2. OpenAI Compatible (OpenRouter / Ollama)
+        else {
+            let url = '';
+            let key = '';
+            
+            if (activeModelProvider === 'OpenRouter') {
+                url = 'https://openrouter.ai/api/v1/chat/completions';
+                key = openRouterApiKey;
+            } else {
+                url = `${ollamaServerUrl}/api/chat`;
+                key = ''; // No key for local Ollama
+            }
 
-        const body: any = {
-            model: model,
-            messages: [
-                { role: 'system', content: system },
-                { role: 'user', content: userContent }
-            ],
-            stream: false
-        };
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (key) headers['Authorization'] = `Bearer ${key}`;
+            if (activeModelProvider === 'OpenRouter') {
+                 headers['HTTP-Referer'] = 'https://protosigner-pro.app';
+                 headers['X-Title'] = 'ProtoSigner';
+            }
 
-        if (jsonMode) {
-             if (url.includes('localhost') || url.includes('127.0.0.1')) {
-                 body.format = 'json';
-             } else {
-                 if (model.includes('gpt')) {
-                     body.response_format = { type: 'json_object' };
+            let userContent: any = userPrompt;
+            if (imageContext) {
+                userContent = [
+                    { type: "text", text: userPrompt },
+                    { type: "image_url", image_url: { url: imageContext } }
+                ];
+            }
+
+            const body: any = {
+                model: activeModelId,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userContent }
+                ],
+                stream: false
+            };
+
+            if (forceJson) {
+                 if (activeModelProvider === 'Ollama') {
+                     body.format = 'json';
+                 } else {
+                     if (activeModelId.includes('gpt') || activeModelId.includes('claude')) {
+                         body.response_format = { type: 'json_object' };
+                     }
                  }
-             }
+            }
+
+            const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+            if (!res.ok) {
+                const err = await res.text();
+                throw new Error(`AI Provider Error: ${err}`);
+            }
+            const data = await res.json();
+            return data.choices?.[0]?.message?.content || data.message?.content || '';
         }
-
-        const res = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body)
-        });
-
-        if (!res.ok) {
-            const err = await res.text();
-            throw new Error(`AI Provider Error: ${err}`);
-        }
-
-        const data = await res.json();
-        return data.choices?.[0]?.message?.content || data.message?.content || '';
     };
 
-    const generateContent = useCallback(async (prompt: string, targetId?: string, imageContext?: string, templateStructure?: any, createNewPage: boolean = false) => {
+    // --- RESPONSE VALIDATION ---
+    const validateAIResponse = (data: any): { valid: boolean; errors: string[] } => {
+        const errors: string[] = [];
+        
+        if (!data) {
+            errors.push('Response is empty');
+            return { valid: false, errors };
+        }
+        
+        const elements = Array.isArray(data) ? data : [data];
+        
+        elements.forEach((el, idx) => {
+            // Check required fields
+            if (!el.type) errors.push(`Element ${idx}: Missing 'type'`);
+            if (!el.name) errors.push(`Element ${idx}: Missing 'name'`);
+            
+            // Check style object
+            if (el.style) {
+                // Height/Width must be numbers or valid strings
+                if (el.style.height && typeof el.style.height === 'string' && el.style.height.includes('px')) {
+                    errors.push(`Element ${idx} (${el.name}): Height '${el.style.height}' should be number, not string with 'px'`);
+                }
+                if (el.style.width && typeof el.style.width === 'string' && el.style.width.includes('px')) {
+                    errors.push(`Element ${idx} (${el.name}): Width '${el.style.width}' should be number, not string with 'px'`);
+                }
+                
+                // FontSize must be number
+                if (el.style.fontSize && typeof el.style.fontSize === 'string') {
+                    errors.push(`Element ${idx} (${el.name}): fontSize should be number`);
+                }
+                
+                // Validate display property for containers
+                const containerTypes = ['section', 'container', 'box', 'frame', 'grid', 'page'];
+                if (containerTypes.includes(el.type) && el.style.display && !['flex', 'grid', 'block'].includes(el.style.display)) {
+                    errors.push(`Element ${idx} (${el.name}): Invalid display '${el.style.display}'`);
+                }
+            }
+            
+            // Recursively validate children
+            if (el.children && Array.isArray(el.children)) {
+                el.children.forEach((child: any, cidx: number) => {
+                    const childValidation = validateAIResponse(child);
+                    errors.push(...childValidation.errors.map(e => `Element ${idx} > Child ${cidx}: ${e}`));
+                });
+            }
+        });
+        
+        return { valid: errors.length === 0, errors };
+    };
+
+    // --- AUTO-FIX COMMON ISSUES ---
+    const fixCommonIssues = (data: any): any => {
+        const fixElement = (el: any): any => {
+            const fixed = { ...el };
+            
+            // Fix string pixels to numbers
+            if (fixed.style) {
+                ['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'fontSize', 'gap', 'padding', 'margin'].forEach(prop => {
+                    if (typeof fixed.style[prop] === 'string' && fixed.style[prop].includes('px')) {
+                        const num = parseInt(fixed.style[prop]);
+                        if (!isNaN(num)) fixed.style[prop] = num;
+                    }
+                });
+                
+                // Fix percentage strings that should be numbers
+                if (typeof fixed.style.width === 'string' && fixed.style.width.includes('%')) {
+                    // Keep percentage as string, that's valid
+                }
+            }
+            
+            // Fix children recursively
+            if (fixed.children && Array.isArray(fixed.children)) {
+                fixed.children = fixed.children.map(fixElement);
+            }
+            
+            return fixed;
+        };
+        
+        if (Array.isArray(data)) {
+            return data.map(fixElement);
+        }
+        return fixElement(data);
+    };
+
+    const generateContent = useCallback(async (prompt: string, targetId?: string, imageContext?: string, templateSkillId?: string, createNewPage: boolean = false) => {
         setIsGenerating(true);
         saveToHistory(createNewPage ? 'AI Generate New Page' : 'AI Generate');
         
@@ -178,21 +289,16 @@ export const useAI = ({
                 isLocked: false
             };
 
-            // Add new page and switch visibility
             setElements(prev => {
                 const hiddenPrev = prev.map(el => el.type === 'page' ? { ...el, style: { ...el.style, display: 'none' } } : el);
                 return [...hiddenPrev, newPage];
             });
             
-            // Switch selection to new page
             selectElement(newPageId);
             effectiveId = newPageId;
             targetEl = newPage;
-            
-            // Slight delay to allow state to settle conceptually (though we use targetEl directly)
             await sleep(50);
         } else {
-            // Standard lookup
             const findEl = (list: UIElement[]): UIElement | null => {
                 for (const el of list) {
                     if (el.id === effectiveId) return el;
@@ -229,151 +335,144 @@ export const useAI = ({
         const contextStr = JSON.stringify(contextData);
         
         try {
-            let responseText = '';
-            
-            // --- IMAGE GENERATION ---
-            // Only allowed in Cloud mode (Provider check implicitly handles this, but explicit check implies intention)
+            // --- IMAGE GENERATION SHORTCUT ---
             if (targetEl.type === 'image' && !imageContext && activeModelProvider === 'Google') {
+                const responseText = await queryAI('', prompt, undefined, false); // Using raw text for images logic not implemented here fully, reusing existing flow
+                // Re-implementing image logic using direct Google call as it's specialized
                 const ai = new GoogleGenAI({ apiKey: googleApiKey });
-                // Correctly use generateContent to generate images with Nano Banana
                 const response = await ai.models.generateContent({
                     model: 'gemini-2.5-flash-image', 
                     contents: { parts: [{ text: prompt }] },
-                    config: {
-                        imageConfig: { aspectRatio: "1:1" }
-                    }
+                    config: { imageConfig: { aspectRatio: "1:1" } }
                 });
-
-                let imageUrl = '';
-                // Check all parts for image data
+                // ... extract image logic ...
                 if (response.candidates?.[0]?.content?.parts) {
                     for (const part of response.candidates[0].content.parts) {
                         if (part.inlineData) {
                             const base64EncodeString = part.inlineData.data;
-                            imageUrl = `data:${part.inlineData.mimeType};base64,${base64EncodeString}`;
+                            updateElementProps(effectiveId, { src: `data:${part.inlineData.mimeType};base64,${base64EncodeString}`, alt: prompt });
                             break;
                         }
                     }
                 }
-
-                if (imageUrl) {
-                    updateElementProps(effectiveId, { src: imageUrl, alt: prompt });
-                }
-                return; 
+                setIsGenerating(false);
+                return;
             }
 
-            // --- UI GENERATION ---
+            // --- MAIN GENERATION ---
             const isContainer = ['page', 'section', 'container', 'box', 'frame', 'grid'].includes(targetEl.type);
             const isLocal = activeModelProvider === 'Ollama';
+            let responseText = '';
             
             if (isContainer) {
-                 // --- 1. SYSTEM INSTRUCTION VIA SPECTRAL AGENT ---
-                 // PASS targetDimensions to SpectralAgent
-                 let systemInstruction = getSpectralSystemInstruction(expertMode, projectSettings, isLocal, targetDimensions);
+                 let gmPlan = { 
+                     agentId: expertMode, 
+                     skillId: templateSkillId || null, 
+                     layoutAdvice: '' 
+                 };
+
+                 // ============================================================
+                 // STEP 1: GRID MASTER (GM) PLANNING
+                 // ============================================================
+                 // Only run planning if Grid Master is enabled in project settings.
                  
-                 // --- 2. TEMPLATE INJECTION ---
-                 let userPrompt = `User Request: "${prompt}".`;
-                 
-                 if (templateStructure) {
-                     systemInstruction += `\n\nIMPORTANT: Use the following WIREFRAME TEMPLATE as the strict skeleton of your response. 
-                     TEMPLATE SKELETON: ${JSON.stringify(templateStructure)}
-                     `;
-                     userPrompt += " Populate the provided template skeleton.";
+                 if (projectSettings.enableGridMaster) {
+                     const pageW = projectSettings.pageSize.width;
+                     const pageH = projectSettings.pageSize.height;
+
+                     const gmSystemPrompt = `You are the Grid Master (GM), a highly precise Layout Mathematician.
+                     
+                     CONTEXT:
+                     - Canvas Size: ${pageW}px width x ${pageH}px height.
+                     - User Request: "${prompt}"
+                     - Auto Skill Mode: ${projectSettings.autoSkillMode ? 'ENABLED' : 'DISABLED'}
+                     - Manual Skill Selection: ${templateSkillId || 'None'}
+                     
+                     AVAILABLE AGENTS:
+                     - landing (High conversion, aesthetic)
+                     - full-stack (Functional, SaaS, dashboards)
+                     - hud (Sci-Fi, data-dense)
+                     - dashboard (Analytics, charts)
+                     - os (Desktop metaphors)
+                     - mobile (App interfaces)
+                     
+                     AVAILABLE SKILLS:
+                     - hero-split, bento-grid, saas-pricing, center-splash, modular-grid.
+                     
+                     TASK:
+                     1. Calculate the optimal Grid Layout (Columns, Gaps, Margins) for the given ${pageW}px width.
+                     1.1. Calculate the optimal Sections distribution (Header, Hero, Features, Testimony, etc) for the given ${pageH}px Height
+                     2. Choose the best Expert Agent for this request.
+                     3. SELECT SKILL:
+                        - IF Auto Skill Mode is ENABLED: Choose the most appropriate skill from the list, or null if custom layout is better.
+                        - IF Auto Skill Mode is DISABLED: YOU MUST RETURN the 'Manual Skill Selection' value (which is "${templateSkillId || 'null'}"). Do not override the user.
+                     
+                     OUTPUT JSON ONLY:
+                     {
+                        "agentId": "string (one of available agents)",
+                        "skillId": "string (one of available skills or null)",
+                        "layoutAdvice": "string (Strict CSS instructions. E.g. 'Use grid-template-columns: repeat(12, 1fr) with 24px gap. Main container max-width: 1200px.')"
+                     }`;
+
+                     try {
+                         console.log("[GM] Consulting Grid Master...");
+                         const gmResponse = await queryAI(gmSystemPrompt, "Analyze and Plan.", undefined, true);
+                         const parsedGM = JSON.parse(gmResponse.replace(/```json/g, '').replace(/```/g, '').trim());
+                         
+                         if (parsedGM.agentId) gmPlan.agentId = parsedGM.agentId;
+                         if (parsedGM.skillId) gmPlan.skillId = parsedGM.skillId;
+                         if (parsedGM.layoutAdvice) gmPlan.layoutAdvice = parsedGM.layoutAdvice;
+                         
+                         console.log("[GM] Plan:", gmPlan);
+                     } catch (e) {
+                         console.warn("[GM] Planning failed, proceeding with defaults.", e);
+                     }
                  } else {
-                     userPrompt += " Create a layout from scratch.";
+                     console.log("[GM] Grid Master disabled. Using direct execution.");
                  }
 
-                 if (activeModelProvider === 'Google') {
-                    const ai = new GoogleGenAI({ apiKey: googleApiKey });
-                    
-                    let contentsPayload: any = userPrompt;
-                    if (imageContext) {
-                        contentsPayload = {
-                            parts: [
-                                { text: userPrompt },
-                                { inlineData: { mimeType: 'image/png', data: imageContext.split(',')[1] } }
-                            ]
-                        };
-                    }
+                 // ============================================================
+                 // STEP 2: ORCHESTRATED EXECUTION
+                 // ============================================================
+                 const systemInstruction = Orchestrator.generateSystemPrompt(
+                    gmPlan.agentId as ExpertMode, 
+                    projectSettings, 
+                    isLocal, 
+                    targetDimensions, 
+                    gmPlan.skillId,
+                    gmPlan.layoutAdvice // Inject GM's math (if available)
+                 );
+                 
+                 responseText = await queryAI(systemInstruction, `User Request: "${prompt}"`, imageContext, true);
 
-                    const response = await ai.models.generateContent({
-                        model: activeModelId, 
-                        contents: contentsPayload,
-                        config: { 
-                            systemInstruction: systemInstruction,
-                            responseMimeType: 'application/json' 
-                        }
-                    });
-                    responseText = response.text || '';
-                 } else if (activeModelProvider === 'OpenRouter') {
-                     responseText = await fetchOpenAICompatible(
-                        'https://openrouter.ai/api/v1/chat/completions',
-                        openRouterApiKey,
-                        activeModelId,
-                        systemInstruction,
-                        userPrompt,
-                        true,
-                        imageContext
-                     );
-                 } else if (activeModelProvider === 'Ollama') {
-                     responseText = await fetchOpenAICompatible(
-                         `${ollamaServerUrl}/v1/chat/completions`,
-                         '',
-                         activeModelId,
-                         systemInstruction,
-                         userPrompt,
-                         true, // force JSON
-                         imageContext
-                     );
+                  if (responseText) {
+                     try {
+                         const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+                         let parsed = JSON.parse(cleanJson);
+                         if (!Array.isArray(parsed) && parsed.children) parsed = [parsed];
+                         if (!Array.isArray(parsed) && parsed.type) parsed = [parsed];
+                         
+                         // VALIDATE RESPONSE
+                         const validation = validateAIResponse(parsed);
+                         if (!validation.valid) {
+                             console.error('[AI Validation Failed]', validation.errors);
+                             // Try to fix common issues
+                             parsed = fixCommonIssues(parsed);
+                         }
+                         
+                         await buildUITree(effectiveId, parsed);
+                     } catch (e) {
+                         console.error("Failed to parse AI response", e);
+                     }
                  }
-                
-                if (responseText) {
-                    try {
-                        let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-                        // Remove trailing commas before closing brackets
-                        cleanJson = cleanJson.replace(/,\s*([}\]])/g, '$1');
-                        // Handle case where AI wraps array in object
-                        let parsed = JSON.parse(cleanJson);
-                        if (!Array.isArray(parsed) && parsed.children) parsed = [parsed];
-                        if (!Array.isArray(parsed) && parsed.type) parsed = [parsed];
-                        
-                        await buildUITree(effectiveId, parsed);
-                    } catch (e) {
-                        console.error("Failed to parse AI response", e);
-                    }
-                }
 
             } else {
-                // Leaf Node Update (existing logic)
+                // Leaf Node Update (Simple)
                 const systemInstruction = `You are a UI Component Specialist.
                 Current Component Context: ${contextStr}.
                 Task: Update the 'props' and 'style'. Return JSON object with keys 'props' and 'style'.
                 `;
-                
-                const userPrompt = `User Request: "${prompt}".`;
-
-                if (activeModelProvider === 'Google') {
-                    const ai = new GoogleGenAI({ apiKey: googleApiKey });
-                    let contentsPayload: any = userPrompt;
-                    if (imageContext) {
-                        contentsPayload = {
-                            parts: [
-                                { text: userPrompt },
-                                { inlineData: { mimeType: 'image/png', data: imageContext.split(',')[1] } }
-                            ]
-                        };
-                    }
-                    const response = await ai.models.generateContent({
-                        model: activeModelId, 
-                        contents: contentsPayload,
-                        config: { systemInstruction, responseMimeType: 'application/json' }
-                    });
-                    responseText = response.text || '';
-                } else if (activeModelProvider === 'OpenRouter') {
-                    responseText = await fetchOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', openRouterApiKey, activeModelId, systemInstruction, userPrompt, true, imageContext);
-                } else if (activeModelProvider === 'Ollama') {
-                    responseText = await fetchOpenAICompatible(`${ollamaServerUrl}/v1/chat/completions`, '', activeModelId, systemInstruction, userPrompt, true, imageContext);
-                }
+                responseText = await queryAI(systemInstruction, `User Request: "${prompt}"`, imageContext, true);
 
                 if (responseText) {
                     try {
@@ -393,13 +492,97 @@ export const useAI = ({
         }
     }, [googleApiKey, openRouterApiKey, ollamaServerUrl, activeModelId, activeModelProvider, elements, saveToHistory, updateElementProps, updateElementStyle, projectSettings, expertMode, selectElement]);
 
+    // --- REFINED LAYOUT (GRID MASTER) ---
+    const refineSelectionLayout = useCallback(async () => {
+        if (!selectedId) return;
+        setIsGenerating(true);
+        saveToHistory('GM Refine Layout');
+
+        const findEl = (list: UIElement[]): UIElement | null => {
+            for (const el of list) {
+                if (el.id === selectedId) return el;
+                if (el.children) { const found = findEl(el.children); if (found) return found; }
+            }
+            return null;
+        };
+        const targetEl = findEl(elements);
+        if (!targetEl || !targetEl.children || targetEl.children.length === 0) {
+            setIsGenerating(false);
+            return;
+        }
+
+        const childAnalysis = targetEl.children.map(c => ({
+            type: c.type,
+            name: c.name,
+            currentStyle: c.style
+        }));
+
+        const systemInstruction = `You are the Grid Master (GM).
+        
+        TASK:
+        Analyze the children of the selected container and determine the BEST Flexbox or Grid properties to organize them cleanly.
+        
+        INPUT:
+        - Children Count: ${targetEl.children.length}
+        - Children Data: ${JSON.stringify(childAnalysis)}
+        - Parent Current Style: ${JSON.stringify(targetEl.style)}
+        
+        OUTPUT RULES:
+        1. Return a JSON object with a single key "style" containing React CSS properties for the PARENT CONTAINER.
+        2. MANDATORY: Set 'display': 'flex' or 'grid'.
+        3. MANDATORY: Set 'flexDirection', 'alignItems', 'justifyContent', and 'gap'.
+        4. MANDATORY: If children have 'position: absolute', assume they are messy and you should REMOVE that by setting the parent to flex.
+        5. DO NOT return children updates, only the parent style.
+        
+        EXAMPLE OUTPUT:
+        { "style": { "display": "flex", "flexDirection": "row", "alignItems": "center", "justifyContent": "space-between", "gap": 24, "padding": 30 } }
+        `;
+
+        try {
+            const responseText = await queryAI(systemInstruction, "Optimize this layout structure.", undefined, true);
+            const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const result = JSON.parse(cleanJson);
+            
+            if (result.style) {
+                // 1. Update Parent Style
+                updateElementStyle(selectedId, result.style);
+                
+                // 2. Clean Children (Remove absolute positioning to let Flexbox work)
+                // We do this manually to ensure immediate effect
+                targetEl.children.forEach(child => {
+                    const cleanStyle: any = { ...child.style };
+                    delete cleanStyle.position;
+                    delete cleanStyle.left;
+                    delete cleanStyle.top;
+                    delete cleanStyle.right;
+                    delete cleanStyle.bottom;
+                    delete cleanStyle.transform; // Remove transform drags
+                    
+                    updateElementStyle(child.id, { 
+                        position: 'relative', 
+                        left: undefined, 
+                        top: undefined, 
+                        transform: undefined,
+                        // Reset margins that might interfere
+                        margin: 0
+                    });
+                });
+            }
+        } catch (e) {
+            console.error("GM Refine failed", e);
+        } finally {
+            setIsGenerating(false);
+        }
+
+    }, [selectedId, elements, queryAI, updateElementStyle, saveToHistory]);
+
     const generateStyles = useCallback(async (prompt: string, targetId?: string, imageContext?: string) => {
-        // Reuse existing style generation logic
         const activePage = elements.find(el => el.type === 'page' && el.style?.display !== 'none') || elements[0];
         const effectiveId = targetId || selectedId || activePage.id;
         if (!effectiveId) return;
         setIsGenerating(true);
         saveToHistory('AI Styles');
+        
         const findEl = (list: UIElement[]): UIElement | null => {
             for (const el of list) {
                 if (el.id === effectiveId) return el;
@@ -415,36 +598,16 @@ export const useAI = ({
             Current Styles: ${currentStyleStr}.
             Task: output a JSON object of React CSS properties (camelCase) to apply/merge.
             `;
-            const userPrompt = `User Request: "${prompt}".`;
-            let responseText = '';
-
-            if (activeModelProvider === 'Google') {
-                const ai = new GoogleGenAI({ apiKey: googleApiKey });
-                let contentsPayload: any = userPrompt;
-                if (imageContext) {
-                    contentsPayload = {
-                        parts: [
-                            { text: userPrompt },
-                            { inlineData: { mimeType: 'image/png', data: imageContext.split(',')[1] } }
-                        ]
-                    };
-                }
-                const response = await ai.models.generateContent({
-                    model: activeModelId, contents: contentsPayload, config: { systemInstruction, responseMimeType: 'application/json' }
-                });
-                responseText = response.text || '';
-            } else if (activeModelProvider === 'OpenRouter') {
-                responseText = await fetchOpenAICompatible('https://openrouter.ai/api/v1/chat/completions', openRouterApiKey, activeModelId, systemInstruction, userPrompt, true, imageContext);
-            } else if (activeModelProvider === 'Ollama') {
-                responseText = await fetchOpenAICompatible(`${ollamaServerUrl}/v1/chat/completions`, '', activeModelId, systemInstruction, userPrompt, true, imageContext);
-            }
+            
+            const responseText = await queryAI(systemInstruction, `User Request: "${prompt}"`, imageContext, true);
+            
             if (responseText) {
                 const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
                 const styles = JSON.parse(cleanJson);
                 updateElementStyle(effectiveId, styles);
             }
         } catch (e) { console.error("AI Style failed", e); } finally { setIsGenerating(false); }
-    }, [googleApiKey, openRouterApiKey, ollamaServerUrl, activeModelId, activeModelProvider, updateElementStyle, saveToHistory, selectedId, elements]);
+    }, [queryAI, updateElementStyle, saveToHistory, selectedId, elements]);
 
-    return { isGenerating, generateContent, generateStyles };
+    return { isGenerating, generateContent, generateStyles, refineSelectionLayout };
 };

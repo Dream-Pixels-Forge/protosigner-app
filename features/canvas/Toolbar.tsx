@@ -48,28 +48,81 @@ export const Toolbar: React.FC = () => {
     const handleSnapshot = async () => {
         if (isSnapping) return;
         
-        const element = document.getElementById('canvas-page-area');
-        if (!element) return;
+        const originalElement = document.getElementById('canvas-page-area');
+        if (!originalElement) return;
 
         try {
             setIsSnapping(true);
             
-            // 1. Deselect everything to hide selection borders/handles
+            // 1. Deselect everything to ensure no selection UI is captured
             selectElement(null);
             
-            // 2. Wait for render to clear UI
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait briefly for React to update the DOM (remove selection handles)
+            await new Promise(resolve => setTimeout(resolve, 200));
 
-            // 3. Capture
-            const canvas = await html2canvas(element, {
+            // 2. Clone the element to isolate it from Canvas Zoom/Pan transforms.
+            const clone = originalElement.cloneNode(true) as HTMLElement;
+            
+            // 3. Prepare dimensions
+            const width = parseInt(originalElement.style.width || '1200');
+            const height = parseInt(originalElement.style.height || '800');
+
+            // 4. Setup a neutral container for the clone
+            const container = document.createElement('div');
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = `${width}px`;
+            container.style.height = `${height}px`;
+            container.style.zIndex = '-9999'; // Hide behind app
+            container.style.visibility = 'visible'; // Must be visible for rendering logic
+            container.style.overflow = 'hidden';
+            
+            // 5. Reset transforms on the clone so it renders flat at 1:1
+            clone.style.transform = 'none';
+            clone.style.margin = '0';
+            clone.style.position = 'absolute';
+            clone.style.top = '0';
+            clone.style.left = '0';
+            clone.style.boxShadow = 'none'; // Remove the floating shadow effect from capture
+            
+            // 6. Manual Cleanup: Remove overlays and guides from the clone
+            // We manually query because html2canvas sometimes renders ignored elements if they are part of the cloned tree root
+            const elementsToRemove = clone.querySelectorAll('[data-html2canvas-ignore]');
+            elementsToRemove.forEach(el => el.remove());
+
+            // Ensure background color is consistent
+            if (!clone.style.backgroundColor && !clone.className.includes('bg-')) {
+                clone.style.backgroundColor = '#ffffff'; 
+            }
+
+            container.appendChild(clone);
+            document.body.appendChild(container);
+
+            // 7. Capture
+            const canvas = await html2canvas(clone, {
                 useCORS: true,
                 scale: 2, // Retina quality
-                backgroundColor: null,
+                backgroundColor: null, 
                 logging: false,
-                allowTaint: true
+                width: width,
+                height: height,
+                windowWidth: width,
+                windowHeight: height,
+                x: 0,
+                y: 0,
+                scrollX: 0,
+                scrollY: 0,
+                ignoreElements: (element) => {
+                    // Double check for ignore attribute just in case
+                    return element.hasAttribute('data-html2canvas-ignore');
+                }
             });
 
-            // 4. Download
+            // 8. Cleanup
+            document.body.removeChild(container);
+
+            // 9. Download
             const link = document.createElement('a');
             link.download = `protosigner_snap_${Date.now()}.png`;
             link.href = canvas.toDataURL('image/png');

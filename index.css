@@ -8,7 +8,23 @@
   --color-background-dark: #000000;
   --color-canvas-dark: #030303;
   --color-panel-dark: #0a0a0a;
-  
+
   --font-family-sans: "Space Grotesk", sans-serif;
   --font-family-display: "Space Grotesk", sans-serif;
+
+  /* NEW: Panel colors - slightly elevated for contrast */
+  --color-panel-base: #141414;
+  --color-panel-elevated: #1a1a1a;
+  --color-panel-glass: rgba(20, 20, 20, 0.85);
+
+  /* NEW: Edge/Border colors */
+  --color-edge-canvas: rgba(255, 255, 255, 0.03);
+  --color-edge-panel: rgba(255, 255, 255, 0.08);
+  --color-edge-highlight: rgba(255, 255, 255, 0.12);
+
+  /* Page and Canvas contrast colors */
+  --color-canvas-bg-dark: #0a0a0a;
+  --color-canvas-bg-light: #f5f5f5;
+  --color-page-bg-dark: #141414;
+  --color-page-bg-light: #ffffff;
 }

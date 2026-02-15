@@ -6,21 +6,21 @@ export const defaultSettings: ProjectSettings = {
   animateEntrance: true,
   fontFamily: 'Space Grotesk',
   
-  pageSize: { width: 1440, height: 1200 },
+  pageSize: { width: 1440, height: 3600 }, // Increased height to fit new sections
   viewportSize: { width: 1440, height: 900 },
   
   pageBorder: { show: true, width: 1, color: '#333333', style: 'solid' },
-  viewportBorder: { show: true, width: 2, color: '#00bcd4', style: 'dashed' },
+  viewportBorder: { show: true, width: 2, color: 'rgba(255, 255, 255, 0.2)', style: 'dashed' },
   
   guides: {
-      showFold: false,
-      foldPosition: 800, // Common laptop fold
+      showFold: true,
+      foldPosition: 900,
       showSafeZone: false,
-      safeZoneWidth: 1140, // Standard Bootstrap container
+      safeZoneWidth: 1140,
       showColumnGrid: false,
       columns: 12,
       gap: 24,
-      margin: 0, // usually handled by container width, but allows full-width grid logic
+      margin: 0,
       color: 'rgba(255, 0, 0, 0.05)'
   },
 
@@ -28,7 +28,10 @@ export const defaultSettings: ProjectSettings = {
   showGrid: true,
   snapToGrid: true,
   gridSize: 20,
-  componentLibrary: 'html-tailwind'
+  componentLibrary: 'html-tailwind',
+
+  enableGridMaster: true,
+  autoSkillMode: true
 };
 
 export const defaultAppSettings: AppSettings = {
@@ -60,10 +63,11 @@ export const initialElements: UIElement[] = [
         color: '#ffffff',
         position: 'relative',
         overflow: 'hidden',
-        height: '100%',
-        minHeight: '100%',
+        height: 3600, // Match pageSize.height
+        minHeight: 3600,
         fontFamily: 'Space Grotesk',
-        alignItems: 'center'
+        alignItems: 'center',
+        paddingBottom: 0
     },
     children: [
         // Background Glows
@@ -111,7 +115,7 @@ export const initialElements: UIElement[] = [
             props: {},
             style: {
                 width: '90%',
-                maxWidth: 1280,
+                maxWidth: 1200,
                 height: 80,
                 display: 'flex',
                 flexDirection: 'row',
@@ -125,8 +129,9 @@ export const initialElements: UIElement[] = [
                 border: '1px solid rgba(255, 255, 255, 0.05)',
                 position: 'sticky',
                 top: 20,
-                zIndex: 50,
-                flexShrink: 0
+                zIndex: 100,
+                flexShrink: 0,
+                boxSizing: 'border-box'
             },
             children: [
                 {
@@ -173,7 +178,8 @@ export const initialElements: UIElement[] = [
             props: {},
             style: {
                 width: '100%',
-                maxWidth: 1280,
+                height: 900, // EXPLICIT HEIGHT for hero
+                maxWidth: 1200,
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -182,7 +188,8 @@ export const initialElements: UIElement[] = [
                 gap: 80,
                 position: 'relative',
                 zIndex: 10,
-                flexShrink: 0
+                flexShrink: 0,
+                boxSizing: 'border-box'
             },
             children: [
                 // Left Text
@@ -395,7 +402,7 @@ export const initialElements: UIElement[] = [
                 }
             ]
         },
-        // Features Grid
+        // Features Grid (FIXED: Added flex-wrap and better sizing)
         {
             id: 'features-section',
             type: 'section',
@@ -403,22 +410,25 @@ export const initialElements: UIElement[] = [
             props: {},
             style: {
                 width: '100%',
-                maxWidth: 1280,
+                height: 500, // EXPLICIT HEIGHT for features
+                maxWidth: 1200,
                 padding: '40px 40px',
                 display: 'flex',
                 flexDirection: 'row',
+                flexWrap: 'wrap', // FIXED: Allow wrapping
                 gap: 24,
                 zIndex: 10,
-                flexShrink: 0
+                flexShrink: 0,
+                boxSizing: 'border-box'
             },
             children: [
                 {
                     id: 'feat-1',
                     type: 'container',
-                    name: 'Feature Card',
+                    name: 'Feature Card 1',
                     props: {},
                     style: {
-                        flex: 1,
+                        flex: '1 1 300px', // Allow shrink/grow with min-width
                         height: 220,
                         backgroundColor: 'rgba(255,255,255,0.03)',
                         border: '1px solid rgba(255,255,255,0.08)',
@@ -427,7 +437,8 @@ export const initialElements: UIElement[] = [
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        backdropFilter: 'blur(10px)'
+                        backdropFilter: 'blur(10px)',
+                        boxSizing: 'border-box'
                     },
                     children: [
                         { id: 'f1-icon', type: 'text', name: 'Icon', props: { text: 'auto_awesome' }, style: { fontFamily: 'Material Icons', fontSize: 32, color: '#a78bfa' } },
@@ -447,10 +458,10 @@ export const initialElements: UIElement[] = [
                 {
                     id: 'feat-2',
                     type: 'container',
-                    name: 'Feature Card',
+                    name: 'Feature Card 2',
                     props: {},
                     style: {
-                        flex: 1,
+                        flex: '1 1 300px',
                         height: 220,
                         backgroundColor: 'rgba(255,255,255,0.03)',
                         border: '1px solid rgba(255,255,255,0.08)',
@@ -459,7 +470,8 @@ export const initialElements: UIElement[] = [
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        backdropFilter: 'blur(10px)'
+                        backdropFilter: 'blur(10px)',
+                        boxSizing: 'border-box'
                     },
                     children: [
                         { id: 'f2-icon', type: 'text', name: 'Icon', props: { text: 'code' }, style: { fontFamily: 'Material Icons', fontSize: 32, color: '#38bdf8' } },
@@ -479,10 +491,10 @@ export const initialElements: UIElement[] = [
                 {
                     id: 'feat-3',
                     type: 'container',
-                    name: 'Feature Card',
+                    name: 'Feature Card 3',
                     props: {},
                     style: {
-                        flex: 1,
+                        flex: '1 1 300px',
                         height: 220,
                         backgroundColor: 'rgba(255,255,255,0.03)',
                         border: '1px solid rgba(255,255,255,0.08)',
@@ -491,7 +503,8 @@ export const initialElements: UIElement[] = [
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        backdropFilter: 'blur(10px)'
+                        backdropFilter: 'blur(10px)',
+                        boxSizing: 'border-box'
                     },
                     children: [
                         { id: 'f3-icon', type: 'text', name: 'Icon', props: { text: 'grid_view' }, style: { fontFamily: 'Material Icons', fontSize: 32, color: '#f472b6' } },
@@ -504,6 +517,225 @@ export const initialElements: UIElement[] = [
                             children: [
                                 { id: 'f3-title', type: 'text', name: 'Title', props: { text: 'Smart Components' }, style: { fontSize: 18, fontWeight: 'bold' } },
                                 { id: 'f3-text', type: 'text', name: 'Text', props: { text: 'Interactive atomic elements that scale.' }, style: { fontSize: 14, color: '#94a3b8' } }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        // Testimonials Section (NEW)
+        {
+            id: 'testimonials-section',
+            type: 'section',
+            name: 'Testimonials',
+            props: {},
+            style: {
+                width: '100%',
+                height: 600, // EXPLICIT HEIGHT for testimonials
+                maxWidth: 1200,
+                padding: '80px 40px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 40,
+                zIndex: 10,
+                flexShrink: 0,
+                boxSizing: 'border-box'
+            },
+            children: [
+                { id: 'test-header', type: 'text', name: 'Header', props: { text: 'Loved by Developers' }, style: { fontSize: 36, fontWeight: 'bold', textAlign: 'center' } },
+                {
+                    id: 'test-grid',
+                    type: 'container',
+                    name: 'Review Grid',
+                    props: {},
+                    style: { display: 'flex', flexDirection: 'row', gap: 24, flexWrap: 'wrap', justifyContent: 'center', width: '100%' },
+                    children: [
+                        {
+                            id: 'review-1',
+                            type: 'container',
+                            name: 'Review Card',
+                            props: {},
+                            style: { flex: '1 1 300px', backgroundColor: 'rgba(255,255,255,0.02)', padding: 24, borderRadius: 16, border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: 16 },
+                            children: [
+                                { id: 'r1-text', type: 'text', name: 'Quote', props: { text: '"This tool saved me weeks of frontend work. The AI generation is startlingly accurate."' }, style: { fontSize: 14, color: '#cbd5e1', lineHeight: 1.5, fontStyle: 'italic' } },
+                                { 
+                                    id: 'r1-user', type: 'container', name: 'User', props: {}, style: { display: 'flex', alignItems: 'center', gap: 12 },
+                                    children: [
+                                        { id: 'r1-av', type: 'circle', name: 'Avatar', props: {}, style: { width: 32, height: 32, backgroundColor: '#3b82f6' } },
+                                        { id: 'r1-name', type: 'text', name: 'Name', props: { text: 'Alex C. - Engineer' }, style: { fontSize: 12, fontWeight: 'bold' } }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            id: 'review-2',
+                            type: 'container',
+                            name: 'Review Card',
+                            props: {},
+                            style: { flex: '1 1 300px', backgroundColor: 'rgba(255,255,255,0.02)', padding: 24, borderRadius: 16, border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: 16 },
+                            children: [
+                                { id: 'r2-text', type: 'text', name: 'Quote', props: { text: '"Finally, a design tool that actually understands code structure. The export is clean."' }, style: { fontSize: 14, color: '#cbd5e1', lineHeight: 1.5, fontStyle: 'italic' } },
+                                { 
+                                    id: 'r2-user', type: 'container', name: 'User', props: {}, style: { display: 'flex', alignItems: 'center', gap: 12 },
+                                    children: [
+                                        { id: 'r2-av', type: 'circle', name: 'Avatar', props: {}, style: { width: 32, height: 32, backgroundColor: '#ec4899' } },
+                                        { id: 'r2-name', type: 'text', name: 'Name', props: { text: 'Sarah L. - Designer' }, style: { fontSize: 12, fontWeight: 'bold' } }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        // Contact / CTA Section (NEW)
+        {
+            id: 'contact-section',
+            type: 'section',
+            name: 'Contact CTA',
+            props: {},
+            style: {
+                width: '100%',
+                height: 500, // EXPLICIT HEIGHT for CTA
+                maxWidth: 1200,
+                padding: '60px 40px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 24,
+                zIndex: 10,
+                flexShrink: 0,
+                boxSizing: 'border-box',
+                marginTop: 20
+            },
+            children: [
+                {
+                    id: 'cta-container',
+                    type: 'container',
+                    name: 'CTA Box',
+                    props: {},
+                    style: {
+                        width: '100%',
+                        maxWidth: 800,
+                        backgroundColor: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
+                        padding: '48px',
+                        borderRadius: 32,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        gap: 24,
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    },
+                    children: [
+                        { id: 'cta-glow', type: 'box', name: 'Glow', props: {}, isLocked: true, style: { position: 'absolute', top: 0, left: 0, right: 0, height: '100%', background: 'radial-gradient(circle at top, rgba(99, 102, 241, 0.3), transparent 70%)', pointerEvents: 'none' } },
+                        { id: 'cta-head', type: 'text', name: 'Heading', props: { text: 'Ready to build faster?' }, style: { fontSize: 32, fontWeight: 'bold', zIndex: 2 } },
+                        { id: 'cta-sub', type: 'text', name: 'Sub', props: { text: 'Join 10,000+ developers shipping beautiful UIs today.' }, style: { fontSize: 16, color: '#c7d2fe', zIndex: 2 } },
+                        {
+                            id: 'cta-input-group',
+                            type: 'container',
+                            name: 'Input Group',
+                            props: {},
+                            style: { display: 'flex', gap: 12, marginTop: 12, width: '100%', maxWidth: 400, zIndex: 2, flexWrap: 'wrap' },
+                            children: [
+                                { id: 'email-input', type: 'button', name: 'Input Mock', props: { label: 'Enter your email' }, style: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.2)', color: '#94a3b8', borderRadius: 8, padding: '12px', textAlign: 'left', cursor: 'text' } },
+                                { id: 'join-btn', type: 'button', name: 'Join Btn', props: { label: 'Join Now' }, style: { backgroundColor: '#ffffff', color: '#4f46e5', fontWeight: 'bold', borderRadius: 8, padding: '12px 24px' } }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        // Footer (NEW)
+        {
+            id: 'footer-section',
+            type: 'section',
+            name: 'Footer',
+            props: {},
+            style: {
+                width: '100%',
+                height: 400, // EXPLICIT HEIGHT for footer
+                padding: '60px 40px 40px 40px',
+                borderTop: '1px solid rgba(255,255,255,0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 40,
+                marginTop: 40,
+                backgroundColor: '#000000',
+                boxSizing: 'border-box',
+                flexShrink: 0
+            },
+            children: [
+                {
+                    id: 'footer-top',
+                    type: 'container',
+                    name: 'Footer Top',
+                    props: {},
+                    style: { display: 'flex', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 40 },
+                    children: [
+                        {
+                            id: 'footer-brand',
+                            type: 'container',
+                            name: 'Brand',
+                            props: {},
+                            style: { display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 300 },
+                            children: [
+                                { id: 'ft-logo', type: 'text', name: 'Logo', props: { text: 'Protosigner.' }, style: { fontSize: 20, fontWeight: 'bold' } },
+                                { id: 'ft-desc', type: 'text', name: 'Desc', props: { text: 'The next generation UI builder for the AI era.' }, style: { fontSize: 14, color: '#64748b' } }
+                            ]
+                        },
+                        {
+                            id: 'footer-links',
+                            type: 'container',
+                            name: 'Links Group',
+                            props: {},
+                            style: { display: 'flex', gap: 60, flexWrap: 'wrap' },
+                            children: [
+                                {
+                                    id: 'col-1',
+                                    type: 'container',
+                                    name: 'Product',
+                                    props: {},
+                                    style: { display: 'flex', flexDirection: 'column', gap: 12 },
+                                    children: [
+                                        { id: 'h-1', type: 'text', name: 'Head', props: { text: 'PRODUCT' }, style: { fontSize: 12, fontWeight: 'bold', color: '#475569' } },
+                                        { id: 'l-1a', type: 'text', name: 'Link', props: { text: 'Features' }, style: { fontSize: 14, color: '#94a3b8' } },
+                                        { id: 'l-1b', type: 'text', name: 'Link', props: { text: 'Pricing' }, style: { fontSize: 14, color: '#94a3b8' } }
+                                    ]
+                                },
+                                {
+                                    id: 'col-2',
+                                    type: 'container',
+                                    name: 'Company',
+                                    props: {},
+                                    style: { display: 'flex', flexDirection: 'column', gap: 12 },
+                                    children: [
+                                        { id: 'h-2', type: 'text', name: 'Head', props: { text: 'COMPANY' }, style: { fontSize: 12, fontWeight: 'bold', color: '#475569' } },
+                                        { id: 'l-2a', type: 'text', name: 'Link', props: { text: 'About' }, style: { fontSize: 14, color: '#94a3b8' } },
+                                        { id: 'l-2b', type: 'text', name: 'Link', props: { text: 'Blog' }, style: { fontSize: 14, color: '#94a3b8' } }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 'footer-btm',
+                    type: 'container',
+                    name: 'Bottom Bar',
+                    props: {},
+                    style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 30, borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap', gap: 20 },
+                    children: [
+                        { id: 'copy', type: 'text', name: 'Copyright', props: { text: '© 2026 ProtoSigner Inc.' }, style: { fontSize: 12, color: '#475569' } },
+                        { 
+                            id: 'socials', type: 'container', name: 'Socials', props: {}, style: { display: 'flex', gap: 16 },
+                            children: [
+                                { id: 'soc-1', type: 'text', name: 'Twitter', props: { text: '𝕏' }, style: { color: '#94a3b8', fontSize: 14 } },
+                                { id: 'soc-2', type: 'text', name: 'GitHub', props: { text: 'GH' }, style: { color: '#94a3b8', fontSize: 14 } }
                             ]
                         }
                     ]

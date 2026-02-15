@@ -2,7 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useEditor } from '../../context/EditorContext';
 import { UIElement, ExpertMode } from '../../types';
-import { LAYOUT_TEMPLATES } from '../ai/templates';
+import { AGENT_REGISTRY } from '../ai/agents';
+import { SKILL_REGISTRY } from '../ai/skills';
 import { getRandomPrompt } from '../ai/randomPrompts';
 
 type GenMode = 'content' | 'style' | 'page';
@@ -23,10 +24,10 @@ export const PromptBar: React.FC = () => {
     const [attachedImage, setAttachedImage] = useState<string | null>(null);
     const [isListening, setIsListening] = useState(false);
     
-    // Template & Expert State
-    const [showTemplates, setShowTemplates] = useState(false);
-    const [showExperts, setShowExperts] = useState(false);
-    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+    // Skill & Agent State
+    const [showSkills, setShowSkills] = useState(false);
+    const [showAgents, setShowAgents] = useState(false);
+    const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
     
     // Surprise / Random Mode
     const [isSurpriseMode, setIsSurpriseMode] = useState(false);
@@ -44,8 +45,14 @@ export const PromptBar: React.FC = () => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const recognitionRef = useRef<any>(null);
-    const templatesRef = useRef<HTMLDivElement>(null);
-    const expertsRef = useRef<HTMLDivElement>(null);
+    const skillsRef = useRef<HTMLDivElement>(null);
+    const agentsRef = useRef<HTMLDivElement>(null);
+
+    // Get current Agent
+    const activeAgent = AGENT_REGISTRY.find(a => a.id === expertMode) || AGENT_REGISTRY[0];
+    
+    // Get current Skill
+    const selectedSkill = SKILL_REGISTRY.find(s => s.id === selectedSkillId);
 
     // Auto-resize textarea
     useEffect(() => {
@@ -58,11 +65,11 @@ export const PromptBar: React.FC = () => {
     // Close menus on outside click
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (templatesRef.current && !templatesRef.current.contains(event.target as Node)) {
-                setShowTemplates(false);
+            if (skillsRef.current && !skillsRef.current.contains(event.target as Node)) {
+                setShowSkills(false);
             }
-            if (expertsRef.current && !expertsRef.current.contains(event.target as Node)) {
-                setShowExperts(false);
+            if (agentsRef.current && !agentsRef.current.contains(event.target as Node)) {
+                setShowAgents(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -84,23 +91,22 @@ export const PromptBar: React.FC = () => {
     const selectedElement = selectedId ? findElement(elements, selectedId) : null;
     const selectedName = selectedElement ? selectedElement.name : (activePage?.name || 'Selection');
 
-    // --- Typewriter Effect Logic (unchanged) ---
+    // --- Typewriter Effect Logic ---
     useEffect(() => {
         textIndexRef.current = 0;
         charIndexRef.current = 0;
         isDeletingRef.current = false;
         setPlaceholder('');
-    }, [mode, selectedElement?.id, isGenerating, isListening]);
+    }, [mode, selectedElement?.id, isGenerating, isListening, expertMode]);
 
     useEffect(() => {
         if (prompt) return;
         const getTexts = () => {
-            if (isGenerating) return ["Processing request...", "Consulting neural engine...", "Generating UI structure...", "Applying styles..."];
+            if (isGenerating) return [`${activeAgent.name} is thinking...`, "Consulting neural engine...", "Generating UI structure..."];
             if (isListening) return ["Listening...", "Go ahead, I'm listening...", "Speak your command..."];
+            
             const contextName = mode === 'page' ? activePage.name : selectedName;
-            if (mode === 'page') return [`Describe content for ${contextName}...`];
-            if (mode === 'style') return [`Describe style changes for ${contextName}...`];
-            return [`Edit ${contextName}...`];
+            return [`Ask ${activeAgent.name} to design ${contextName}...`];
         };
         const texts = getTexts();
         const type = () => {
@@ -127,21 +133,18 @@ export const PromptBar: React.FC = () => {
         };
         typingTimeoutRef.current = setTimeout(type, 100);
         return () => clearTimeout(typingTimeoutRef.current);
-    }, [prompt, mode, selectedName, activePage.name, isGenerating, isListening]);
+    }, [prompt, mode, selectedName, activePage.name, isGenerating, isListening, activeAgent.name]);
 
 
     const handleGenerate = () => {
-        if (!prompt.trim() && !attachedImage && !selectedTemplateId) return;
+        if (!prompt.trim() && !attachedImage && !selectedSkillId) return;
         
-        // Find selected template structure
-        const template = LAYOUT_TEMPLATES.find(t => t.id === selectedTemplateId)?.structure;
-
+        // Pass skill ID instead of raw template structure
         if (mode === 'page') {
             const pageId = activePage.id;
-            // Pass autoCreatePage flag
-            generateContent(prompt, pageId, attachedImage || undefined, template, autoCreatePage);
+            generateContent(prompt, pageId, attachedImage || undefined, selectedSkillId, autoCreatePage);
         } else if (mode === 'content') {
-            generateContent(prompt, undefined, attachedImage || undefined, template);
+            generateContent(prompt, undefined, attachedImage || undefined, selectedSkillId);
         } else {
             generateStyles(prompt, undefined, attachedImage || undefined);
         }
@@ -149,7 +152,7 @@ export const PromptBar: React.FC = () => {
         // Reset after generation start
         setPrompt('');
         setAttachedImage(null);
-        setSelectedTemplateId(null);
+        setSelectedSkillId(null);
         setIsSurpriseMode(false); 
     };
 
@@ -159,7 +162,6 @@ export const PromptBar: React.FC = () => {
         setIsSurpriseMode(true);
     };
 
-    // If user edits prompt manually, turn off surprise mode glow
     const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setPrompt(e.target.value);
         if (isSurpriseMode) setIsSurpriseMode(false);
@@ -198,15 +200,6 @@ export const PromptBar: React.FC = () => {
         }
     };
 
-    const EXPERTS: { id: ExpertMode, label: string, desc: string, icon: string }[] = [
-        { id: 'landing', label: 'Landing Page Expert', desc: 'Dribbble/Behance Aesthetics', icon: 'web' },
-        { id: 'full-stack', label: 'Full Stack Expert', desc: 'Architecture, routing, layout', icon: 'layers' },
-        { id: 'hud', label: 'Expert HUD', desc: 'Sci-fi, data-dense, FUI', icon: 'radar' },
-        { id: 'dashboard', label: 'Expert Dashboard', desc: 'Analytics, grids, charts', icon: 'dashboard' },
-        { id: 'os', label: 'Expert OS Design', desc: 'Desktop metaphor, windows', icon: 'desktop_windows' },
-        { id: 'mobile', label: 'Expert Mobile Design', desc: 'Responsive, touch-first', icon: 'smartphone' },
-    ];
-
     return (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-full max-w-4xl z-50 flex flex-col gap-0" onMouseDown={(e) => e.stopPropagation()}>
             {/* Mode Toggles */}
@@ -231,16 +224,16 @@ export const PromptBar: React.FC = () => {
                     Styles
                 </button>
                 
-                {/* Expert Mode Toggle */}
-                <div className="relative" ref={expertsRef}>
+                {/* Agent Selection */}
+                <div className="relative" ref={agentsRef}>
                     <div className="flex items-center">
                         <button 
-                            onClick={() => setShowExperts(!showExperts)}
-                            className={`ml-1 px-4 py-1.5 rounded-tl-lg text-[11px] font-bold transition-all border-t border-l border-b-0 flex items-center gap-1 ${showExperts || expertMode !== 'landing' ? 'bg-purple-900/30 text-purple-300 border-purple-500/30' : 'bg-black/40 text-slate-400 border-transparent hover:text-white hover:bg-black/60'}`}
-                            title="Select AI Persona"
+                            onClick={() => setShowAgents(!showAgents)}
+                            className={`ml-1 px-4 py-1.5 rounded-tl-lg text-[11px] font-bold transition-all border-t border-l border-b-0 flex items-center gap-1 ${showAgents || expertMode !== 'landing' ? 'bg-purple-900/30 text-purple-300 border-purple-500/30' : 'bg-black/40 text-slate-400 border-transparent hover:text-white hover:bg-black/60'}`}
+                            title="Select Sub-Agent"
                         >
                             <span className="material-icons text-[12px]">psychology</span>
-                            Expert: {EXPERTS.find(e => e.id === expertMode)?.label.replace('Expert', '')}
+                            Agent: {activeAgent.name}
                         </button>
                         
                         {/* Surprise Me / Random Button */}
@@ -253,22 +246,22 @@ export const PromptBar: React.FC = () => {
                         </button>
                     </div>
                     
-                    {showExperts && (
+                    {showAgents && (
                         <div className="absolute bottom-full left-0 mb-1 w-64 bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl p-2 animate-in slide-in-from-bottom-2 duration-200 z-[70]">
-                             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 py-1 mb-2">Select Persona</div>
+                             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 py-1 mb-2">Deploy Sub-Agent</div>
                              <div className="space-y-1">
-                                {EXPERTS.map(exp => (
+                                {AGENT_REGISTRY.map(agent => (
                                     <button
-                                        key={exp.id}
-                                        onClick={() => { setExpertMode(exp.id); setShowExperts(false); }}
-                                        className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${expertMode === exp.id ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}
+                                        key={agent.id}
+                                        onClick={() => { setExpertMode(agent.id); setShowAgents(false); }}
+                                        className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${expertMode === agent.id ? 'bg-purple-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}
                                     >
-                                        <span className="material-icons text-lg opacity-80">{exp.icon}</span>
+                                        <span className="material-icons text-lg opacity-80">{agent.icon}</span>
                                         <div>
-                                            <div className="text-xs font-bold">{exp.label}</div>
-                                            <div className="text-[10px] opacity-70">{exp.desc}</div>
+                                            <div className="text-xs font-bold">{agent.name}</div>
+                                            <div className="text-[10px] opacity-70">{agent.role}</div>
                                         </div>
-                                        {expertMode === exp.id && <span className="material-icons text-sm ml-auto">check</span>}
+                                        {expertMode === agent.id && <span className="material-icons text-sm ml-auto">check</span>}
                                     </button>
                                 ))}
                              </div>
@@ -296,36 +289,38 @@ export const PromptBar: React.FC = () => {
                 ${isSurpriseMode ? 'ring-orange-500/50 shadow-orange-500/20' : 'ring-white/10'}
             `}>
                 
-                {/* Templates Popover */}
-                {showTemplates && (
+                {/* Skills Popover */}
+                {showSkills && (
                     <div 
-                        ref={templatesRef}
+                        ref={skillsRef}
                         className="absolute bottom-full left-0 mb-2 w-72 bg-[#1e1e1e] border border-white/10 rounded-xl shadow-2xl p-2 animate-in slide-in-from-bottom-2 duration-200 z-[60]"
                     >
-                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 py-1 mb-2">High-Fidelity Patterns</div>
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 py-1 mb-2">
+                             {activeAgent.name}'s Skills
+                        </div>
                         <div className="space-y-1">
-                            {LAYOUT_TEMPLATES.map(t => (
+                            {SKILL_REGISTRY.map(skill => (
                                 <button
-                                    key={t.id}
-                                    onClick={() => { setSelectedTemplateId(t.id); setShowTemplates(false); }}
-                                    className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${selectedTemplateId === t.id ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}
+                                    key={skill.id}
+                                    onClick={() => { setSelectedSkillId(skill.id); setShowSkills(false); }}
+                                    className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${selectedSkillId === skill.id ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-slate-300'}`}
                                 >
-                                    <span className="material-icons text-lg opacity-80">{t.icon}</span>
+                                    <span className="material-icons text-lg opacity-80">{skill.icon}</span>
                                     <div>
-                                        <div className="text-xs font-bold">{t.name}</div>
-                                        <div className="text-[10px] opacity-70">{t.description}</div>
+                                        <div className="text-xs font-bold">{skill.name}</div>
+                                        <div className="text-[10px] opacity-70">{skill.description}</div>
                                     </div>
-                                    {selectedTemplateId === t.id && <span className="material-icons text-sm ml-auto">check</span>}
+                                    {selectedSkillId === skill.id && <span className="material-icons text-sm ml-auto">check</span>}
                                 </button>
                             ))}
                             <button
-                                onClick={() => { setSelectedTemplateId(null); setShowTemplates(false); }}
+                                onClick={() => { setSelectedSkillId(null); setShowSkills(false); }}
                                 className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors hover:bg-white/5 text-slate-400`}
                             >
                                 <span className="material-icons text-lg opacity-80">check_box_outline_blank</span>
                                 <div>
                                     <div className="text-xs font-bold">Free Form</div>
-                                    <div className="text-[10px] opacity-70">Let AI decide structure</div>
+                                    <div className="text-[10px] opacity-70">Let {activeAgent.name} decide</div>
                                 </div>
                             </button>
                         </div>
@@ -349,11 +344,13 @@ export const PromptBar: React.FC = () => {
                     {/* Media Tools */}
                     <div className="flex items-center gap-1 mb-2">
                         <button 
-                            onClick={() => setShowTemplates(!showTemplates)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${selectedTemplateId ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
-                            title="Select Structure Template"
+                            onClick={() => setShowSkills(!showSkills)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${selectedSkillId ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
+                            title="Equip Skill (Template)"
                         >
-                            <span className="material-icons text-[18px]">view_quilt</span>
+                            <span className="material-icons text-[18px]">
+                                {selectedSkill ? selectedSkill.icon : 'view_quilt'}
+                            </span>
                         </button>
 
                         <button 

@@ -85,46 +85,56 @@ export const getSpectralSystemInstruction = (
     // 4. Expert Persona Injection
     switch(expertMode) {
         case 'landing':
-            systemInstruction += `\n\n[UI DESIGNER: LANDING PAGE]
-            - FOCUS: High-impact hero sections, clear value proposition, strong visual hierarchy.
-            - LAYOUT: Hero section, feature grid, testimonials, call-to-action.
-            - STYLE: Modern aesthetics with gradients, shadows, and whitespace. Bold typography.
-            - COLORS: Sophisticated color palettes that convey brand personality.
-            - COMPONENTS: Hero banners, feature cards, pricing tables, footer sections.`;
+            systemInstruction += `\n\n[EXPERT: LANDING PAGE - AWARD WINNING DESIGN]
+            - INSPIRATION SOURCES: Dribbble (Trending), Behance (Featured), Awwwards (Site of the Day), Figma Community, Pinterest UI Trends.
+            - AESTHETIC: Visually stunning, generous whitespace, large bold typography (Inter/Space Grotesk), subtle micro-interactions.
+            - COMPONENTS: 
+              * Hero Sections with split layouts or centered typography.
+              * Bento Grids for features.
+              * Floating glass cards.
+              * Marquee logos.
+            - COLORS: Use sophisticated palettes (e.g., Deep Slate + Electric Blue, or Minimalist Black & White).
+            - VISUALS: Use placeholders for high-quality imagery.`;
             break;
         case 'full-stack':
-            systemInstruction += `\n\n[UX ARCHITECT: APPLICATION INTERFACE]
-            - FOCUS: Navigation clarity, content organization, functional layouts.
-            - STRUCTURE: Sidebar navigation, header with actions, main content area.
-            - STYLE: Clean, professional design with clear hierarchy and spacing.
-            - COMPONENTS: Navigation menus, data tables, forms, breadcrumbs.`;
+            systemInstruction += `\n\n[EXPERT: FULL STACK SaaS]
+            - Focus: Scalability, Navigation, functional layout.
+            - Structure: Sidebar + Main Content + Footer.
+            - Style: Linear.app or Vercel aesthetic (Clean borders, subtle grays).`;
             break;
         case 'hud':
-            systemInstruction += `\n\n[INTERFACE DESIGNER: DATA DISPLAY]
-            - FOCUS: Information density, status indicators, technical readouts.
-            - AESTHETIC: High-tech interface with geometric elements and data visualization.
-            - COLORS: Dark backgrounds with bright accent colors for readability.
-            - COMPONENTS: Status panels, progress bars, data readouts, indicators.`;
+            systemInstruction += `\n\n[EXPERT: SCI-FI HUD / FUI]
+            - INSPIRATION: Iron Man J.A.R.V.I.S, Cyberpunk 2077, Oblivion Movie UI.
+            - AESTHETIC: High-tech, data-dense, monospaced fonts, thin lines.
+            - COLORS: Dark Backgrounds (#050505) with Neon Cyan (#06b6d4) or Amber accents.
+            - DECORATION: Corner brackets, crosshairs, scanning lines, hex grids.`;
             break;
         case 'dashboard':
-            systemInstruction += `\n\n[DATA DESIGNER: ANALYTICS DASHBOARD]
-            - FOCUS: Metrics display, data visualization, KPI presentation.
-            - LAYOUT: Card-based grid with charts and statistics.
-            - STYLE: Clean cards with shadows, organized information hierarchy.
-            - COMPONENTS: Metric cards, chart placeholders, data tables, filters.`;
+            systemInstruction += `\n\n[EXPERT: ANALYTICS DASHBOARD]
+            - Focus: Data Density, Widgets, KPI Cards.
+            - Layout: Bento Grid or Masonry.
+            - Style: Clean cards with soft shadows, data visualization placeholders.`;
             break;
         case 'os':
-            systemInstruction += `\n\n[SYSTEM DESIGNER: DESKTOP INTERFACE]
-            - FOCUS: Window management, system controls, spatial organization.
-            - COMPONENTS: Windows with title bars, menu bars, dock/taskbar.
-            - STYLE: Translucent effects, depth through shadows, smooth interactions.`;
+            systemInstruction += `\n\n[EXPERT: OS DESKTOP]
+            - Metaphor: Desktop Environment (macOS / Windows 11).
+            - Components: Windows with title bars, Dock/Taskbar, blurred transparency (glassmorphism).`;
             break;
         case 'mobile':
-            systemInstruction += `\n\n[MOBILE DESIGNER: APP INTERFACE]
-            - FOCUS: Touch-friendly design, thumb-zone optimization, mobile patterns.
-            - CONSTRAINTS: Compact layouts optimized for small screens.
-            - COMPONENTS: Bottom navigation, large buttons, swipeable cards.
-            - STYLE: Platform-appropriate design with clear touch targets.`;
+            systemInstruction += `\n\n[EXPERT: MOBILE APP]
+            - Constraint: Width < 450px centered.
+            - UX: Bottom Navigation, Large Touch Targets (44px+).
+            - Style: iOS Human Interface Guidelines / Material Design 3.`;
+            break;
+        case 'grid-master':
+            systemInstruction += `\n\n[EXPERT: GRID MASTER (GM)]
+            - ROLE: Layout Mathematician & Precision Architect.
+            - MISSION: Construct perfectly aligned, responsive structures based on the container width (${width}px).
+            - TECHNIQUE: 
+              * Use 'display: grid' or calculated 'flex' widths (e.g. 'calc(50% - 10px)').
+              * Enforce strict 12-column or Golden Ratio geometry.
+              * Use 'box-sizing: border-box' universally.
+            - AESTHETIC: Clean lines, balanced whitespace, visible structural intent.`;
             break;
     }
 
