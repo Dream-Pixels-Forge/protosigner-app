@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { UIElement, ProjectSettings, AIProvider, ExpertMode } from '../types';
-import { sleep, insertNodeIntoParent, updateElementRecursively } from './utils';
+import { sleep, insertNodeIntoParent, updateElementRecursively, normalizeStyleProperties } from './utils';
 import { Orchestrator } from '../features/ai/orchestrator';
 import { ensureImageSource } from './imageUtils';
 import { getLocalOptimizations, generateMinimalPrompt, LOCAL_MODEL_CONFIGS } from '../features/ai/LocalModelOptimizer';
@@ -876,7 +876,8 @@ export const useAI = ({
                         const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
                         const data = JSON.parse(cleanJson);
                         const propsToUpdate = data.props || (data.style ? undefined : data);
-                        const styleToUpdate = data.style;
+                        // Normalize CSS properties from kebab-case to camelCase
+                        const styleToUpdate = data.style ? normalizeStyleProperties(data.style) as any : undefined;
                         if (propsToUpdate) updateElementProps(effectiveId, propsToUpdate);
                         if (styleToUpdate) updateElementStyle(effectiveId, styleToUpdate);
                     } catch (e: any) { console.warn("Failed to parse AI response:", e.message); }
@@ -941,8 +942,8 @@ export const useAI = ({
             const result = JSON.parse(cleanJson);
             
             if (result.style) {
-                // 1. Update Parent Style
-                updateElementStyle(selectedId, result.style);
+                // 1. Update Parent Style (with normalized CSS properties)
+                updateElementStyle(selectedId, normalizeStyleProperties(result.style) as any);
                 
                 // 2. Clean Children (Remove absolute positioning to let Flexbox work)
                 // We do this manually to ensure immediate effect
@@ -1001,7 +1002,8 @@ export const useAI = ({
             if (responseText) {
                 const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
                 const styles = JSON.parse(cleanJson);
-                updateElementStyle(effectiveId, styles);
+                // Normalize CSS properties from kebab-case to camelCase
+                updateElementStyle(effectiveId, normalizeStyleProperties(styles) as any);
             }
         } catch (e: any) { console.warn("AI Style failed:", e.message); } finally { setIsGenerating(false); }
     }, [queryAI, updateElementStyle, saveToHistory, selectedId, elements]);
