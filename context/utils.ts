@@ -49,10 +49,74 @@ export const insertNodeIntoParent = (els: UIElement[], parentId: string, newNode
     });
 };
 
+
 export const deleteFromList = (list: UIElement[], id: string): UIElement[] => {
     const filtered = list.filter(el => el.id !== id);
     return filtered.map(el => {
       if (el.children) return { ...el, children: deleteFromList(el.children, id) };
       return el;
     });
+};
+
+// Convert kebab-case CSS properties to camelCase (e.g., "align-items" -> "alignItems")
+// This fixes React warnings about unsupported style properties
+export const normalizeStyleProperties = (style: React.CSSProperties | undefined): React.CSSProperties => {
+    if (!style) return {};
+    
+    const normalized: React.CSSProperties = {};
+    const kebabToCamelMap: Record<string, string> = {
+        'align-items': 'alignItems',
+        'justify-content': 'justifyContent',
+        'background-color': 'backgroundColor',
+        'background-image': 'backgroundImage',
+        'background-size': 'backgroundSize',
+        'border-radius': 'borderRadius',
+        'border-width': 'borderWidth',
+        'border-color': 'borderColor',
+        'border-style': 'borderStyle',
+        'box-shadow': 'boxShadow',
+        'flex-direction': 'flexDirection',
+        'flex-wrap': 'flexWrap',
+        'font-size': 'fontSize',
+        'font-weight': 'fontWeight',
+        'font-family': 'fontFamily',
+        'line-height': 'lineHeight',
+        'letter-spacing': 'letterSpacing',
+        'text-align': 'textAlign',
+        'text-color': 'textColor',
+        'margin-top': 'marginTop',
+        'margin-bottom': 'marginBottom',
+        'margin-left': 'marginLeft',
+        'margin-right': 'marginRight',
+        'padding-top': 'paddingTop',
+        'padding-bottom': 'paddingBottom',
+        'padding-left': 'paddingLeft',
+        'padding-right': 'paddingRight',
+        'max-width': 'maxWidth',
+        'min-width': 'minWidth',
+        'max-height': 'maxHeight',
+        'min-height': 'minHeight',
+        'z-index': 'zIndex',
+        'object-fit': 'objectFit',
+        'overflow-x': 'overflowX',
+        'overflow-y': 'overflowY',
+        'transition-duration': 'transitionDuration',
+        'transition-delay': 'transitionDelay',
+        'animation-name': 'animationName',
+        'animation-duration': 'animationDuration',
+        'animation-delay': 'animationDelay',
+        'animation-iteration-count': 'animationIterationCount',
+        'animation-timing-function': 'animationTimingFunction',
+        'animation-fill-mode': 'animationFillMode'
+    };
+    
+    for (const [key, value] of Object.entries(style)) {
+        if (kebabToCamelMap[key]) {
+            normalized[kebabToCamelMap[key]] = value;
+        } else {
+            normalized[key] = value;
+        }
+    }
+    
+    return normalized;
 };

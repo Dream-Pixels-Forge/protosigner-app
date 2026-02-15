@@ -314,6 +314,67 @@ export const useAI = ({
 
     // --- AUTO-FIX COMMON ISSUES ---
     const fixCommonIssues = (data: any): any => {
+        // Helper: Convert kebab-case CSS to camelCase
+        const normalizeStyle = (style: any): any => {
+            if (!style || typeof style !== 'object') return style;
+            
+            const normalized: any = {};
+            const kebabToCamel: Record<string, string> = {
+                'align-items': 'alignItems',
+                'justify-content': 'justifyContent',
+                'background-color': 'backgroundColor',
+                'background-image': 'backgroundImage',
+                'background-size': 'backgroundSize',
+                'border-radius': 'borderRadius',
+                'border-width': 'borderWidth',
+                'border-color': 'borderColor',
+                'border-style': 'borderStyle',
+                'box-shadow': 'boxShadow',
+                'flex-direction': 'flexDirection',
+                'flex-wrap': 'flexWrap',
+                'font-size': 'fontSize',
+                'font-weight': 'fontWeight',
+                'font-family': 'fontFamily',
+                'line-height': 'lineHeight',
+                'letter-spacing': 'letterSpacing',
+                'text-align': 'textAlign',
+                'text-color': 'textColor',
+                'margin-top': 'marginTop',
+                'margin-bottom': 'marginBottom',
+                'margin-left': 'marginLeft',
+                'margin-right': 'marginRight',
+                'padding-top': 'paddingTop',
+                'padding-bottom': 'paddingBottom',
+                'padding-left': 'paddingLeft',
+                'padding-right': 'paddingRight',
+                'max-width': 'maxWidth',
+                'min-width': 'minWidth',
+                'max-height': 'maxHeight',
+                'min-height': 'minHeight',
+                'z-index': 'zIndex',
+                'object-fit': 'objectFit',
+                'overflow-x': 'overflowX',
+                'overflow-y': 'overflowY',
+                'transition-duration': 'transitionDuration',
+                'transition-delay': 'transitionDelay',
+                'animation-name': 'animationName',
+                'animation-duration': 'animationDuration',
+                'animation-delay': 'animationDelay',
+                'animation-iteration-count': 'animationIterationCount',
+                'animation-timing-function': 'animationTimingFunction',
+                'animation-fill-mode': 'animationFillMode'
+            };
+            
+            for (const [key, value] of Object.entries(style)) {
+                if (kebabToCamel[key]) {
+                    normalized[kebabToCamel[key]] = value;
+                } else {
+                    normalized[key] = value;
+                }
+            }
+            return normalized;
+        };
+
         const fixElement = (el: any, index: number = 0): any => {
             const fixed = { ...el };
             
@@ -363,6 +424,11 @@ export const useAI = ({
             // Ensure required fields for UIElement
             if (!fixed.props) fixed.props = {};
             if (!fixed.style) fixed.style = {};
+            
+            // FIX: Normalize CSS properties from kebab-case to camelCase
+            // This fixes AI outputting "background-color" instead of "backgroundColor"
+            fixed.style = normalizeStyle(fixed.style);
+            
             if (fixed.children === undefined) fixed.children = [];
             if (fixed.isExpanded === undefined) fixed.isExpanded = true;
             if (fixed.isLocked === undefined) fixed.isLocked = false;

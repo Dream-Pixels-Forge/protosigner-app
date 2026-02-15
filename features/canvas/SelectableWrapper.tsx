@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useEditor } from '../../context/EditorContext';
 import { AnimationSettings } from '../../types';
+import { normalizeStyleProperties } from '../../context/utils';
 
 interface SelectableWrapperProps {
   id: string;
@@ -234,6 +235,9 @@ export const SelectableWrapper: React.FC<SelectableWrapperProps> = ({
   // Extract explicit style props to avoid duplication/conflicts
   const { left, top, width, height, position, ...cssStyles } = initialStyle || {};
   
+  // Normalize CSS properties from kebab-case to camelCase to fix React warnings
+  const normalizedCssStyles = normalizeStyleProperties(cssStyles);
+  
   // Construct Animation Style
   const animationStyle: React.CSSProperties = animation && animation.type !== 'none' ? {
       animationName: animation.type,
@@ -246,11 +250,11 @@ export const SelectableWrapper: React.FC<SelectableWrapperProps> = ({
 
   const wrapperStyle: React.CSSProperties = {
       boxSizing: 'border-box', // CRITICAL: Fix for layout overlaps
-      ...cssStyles,
+      ...normalizedCssStyles,
       ...animationStyle,
       width: localSize.width,
       height: localSize.height,
-      zIndex: isDragging || isResizing ? 50 : cssStyles.zIndex,
+      zIndex: isDragging || isResizing ? 50 : normalizedCssStyles.zIndex,
       // If it's a flow child, force relative (or sticky) to maintain context but allow clicks.
       // If explicitly positioned, allow 'absolute' or 'fixed'.
       position: isFlowChild 
