@@ -111,6 +111,8 @@ export interface ProjectSettings {
   componentLibrary: ComponentLibrary;
   enableGridMaster: boolean;
   autoSkillMode: boolean;
+  // Local model optimization
+  localHardwareLevel?: string;
 }
 
 export interface MCPServer {

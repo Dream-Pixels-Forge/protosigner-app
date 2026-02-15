@@ -31,7 +31,10 @@ export const defaultSettings: ProjectSettings = {
   componentLibrary: 'html-tailwind',
 
   enableGridMaster: true,
-  autoSkillMode: true
+  autoSkillMode: true,
+  
+  // Local model optimization - default for maximum compatibility
+  localHardwareLevel: 'light'
 };
 
 export const defaultAppSettings: AppSettings = {

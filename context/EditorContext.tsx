@@ -691,6 +691,7 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updateElementProps,
       updateElementStyle,
       projectSettings,
+      updateProjectSettings,
       expertMode
   });
 

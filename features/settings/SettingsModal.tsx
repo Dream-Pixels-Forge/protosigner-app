@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useEditor } from '../../context/EditorContext';
 import { AIModel, AppSettings, AIProvider } from '../../types';
 import { Toggle } from '../../components/ui/Toggle';
+import { HardwareSettings } from './HardwareSettings';
 
 export const SettingsModal: React.FC = () => {
   const { 
@@ -664,12 +665,17 @@ export const SettingsModal: React.FC = () => {
                         </div>
 
                          <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5">
-                            <div>
-                                <h3 className="text-white font-bold text-sm">Reduce Motion</h3>
-                                <p className="text-slate-400 text-xs mt-1">Disable complex animations.</p>
-                            </div>
-                            <Toggle checked={appSettings.reduceMotion} onChange={(v) => updateAppSettings({ reduceMotion: v })} />
+                             <div>
+                                 <h3 className="text-white font-bold text-sm">Reduce Motion</h3>
+                                 <p className="text-slate-400 text-xs mt-1">Disable complex animations.</p>
+                             </div>
+                             <Toggle checked={appSettings.reduceMotion} onChange={(v) => updateAppSettings({ reduceMotion: v })} />
                         </div>
+                    </div>
+
+                    {/* Hardware Settings for Local Models */}
+                    <div className="pt-6 border-t border-white/10">
+                        <HardwareSettings />
                     </div>
 
                     <div className="pt-8 border-t border-white/10">

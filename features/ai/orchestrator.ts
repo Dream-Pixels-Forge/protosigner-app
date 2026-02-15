@@ -2,6 +2,7 @@
 import { ExpertMode, ProjectSettings } from '../../types';
 import { AGENT_REGISTRY } from './agents';
 import { SKILL_REGISTRY } from './skills';
+import { getLocalOptimizations, getTemplateStructure } from './LocalModelOptimizer';
 
 export class Orchestrator {
     
@@ -273,6 +274,51 @@ interface UIElement {
 6. Children must be UIElement objects following this same schema
 `;
 
+        return instruction;
+    }
+
+    // Generate ultra-optimized prompt for local models (Ollama)
+    static generateLocalOptimizedPrompt(
+        expertMode: ExpertMode,
+        projectSettings: ProjectSettings,
+        targetDimensions: { width: number; height: number },
+        requiredSkillId?: string | null,
+        hardwareLevel: string = 'ultra-light'
+    ): string {
+        const optimizations = getLocalOptimizations(hardwareLevel);
+        
+        // Load the agent
+        const agent = AGENT_REGISTRY.find(a => a.id === expertMode) || AGENT_REGISTRY[0];
+        
+        let instruction = `${optimizations.shortPrefix}\n\n`;
+        
+        // Container info - minimal
+        const { width, height } = targetDimensions;
+        instruction += `Container: ${width}x${height}px.\n`;
+        
+        // Agent context - brief
+        instruction += `Style: ${agent.styleGuide.substring(0, 100)}...\n`;
+        
+        // Add template if specified (pre-fetched, no API call)
+        if (requiredSkillId) {
+            const template = getTemplateStructure(requiredSkillId);
+            if (template) {
+                // Output template structure as example
+                instruction += `\nTemplate: ${JSON.stringify(template)}\n`;
+                instruction += `Follow this exact structure. Only change text content.\n`;
+            }
+        }
+        
+        // Add minimal validation rules
+        instruction += `
+Rules:
+- Numbers only, no "px" (use 100 not "100px")
+- Valid JSON array
+- No comments or extra text
+- Max 3 nesting levels
+- Simple colors only (#fff, #000, #3b82f6)
+`;
+        
         return instruction;
     }
 }

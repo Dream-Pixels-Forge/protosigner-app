@@ -81,25 +81,27 @@ export const SKILL_REGISTRY: Skill[] = [
         name: 'Bento Grid Pattern',
         icon: 'grid_view',
         description: 'Modern, grid-based feature layout.',
-        instruction: 'Implement a CSS Grid layout with auto-fit columns. Create cards with rounded corners (24px) and subtle borders. Span specific cards (gridColumn: span 2) to create visual interest. Ideal for feature showcases.',
+        instruction: 'Implement a CSS Grid layout with auto-fit columns. Create cards with rounded corners (24px) and subtle borders. Span specific cards (gridColumn: span 2) to create visual interest. Ideal for feature showcases. IMPORTANT: Use display:grid with gridTemplateColumns:repeat(auto-fit,minmax(280px,1fr)) for the main container. All cards should use gridColumn property.',
         structure: {
             type: 'section',
             name: 'Bento Grid',
             props: {},
             style: {
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gridAutoRows: 280,
-                gap: 24,
                 width: '100%',
+                minHeight: 600,
                 padding: 60,
-                boxSizing: 'border-box'
+                gap: 24,
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gridAutoRows: 280,
+                boxSizing: 'border-box',
+                alignItems: 'start'
             },
             children: [
-                { type: 'container', name: 'Feature Large', props: {}, style: { gridColumn: 'span 2', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, border: '1px solid rgba(255,255,255,0.1)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: 300 }, children: [], isExpanded: true, isLocked: false },
-                { type: 'container', name: 'Feature Small', props: {}, style: { gridColumn: 'span 1', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, border: '1px solid rgba(255,255,255,0.1)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: 300 }, children: [], isExpanded: true, isLocked: false },
-                { type: 'container', name: 'Feature Small', props: {}, style: { gridColumn: 'span 1', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, border: '1px solid rgba(255,255,255,0.1)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: 300 }, children: [], isExpanded: true, isLocked: false },
-                { type: 'container', name: 'Feature Wide', props: {}, style: { gridColumn: 'span 2', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, border: '1px solid rgba(255,255,255,0.1)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', minHeight: 300 }, children: [], isExpanded: true, isLocked: false }
+                { type: 'container', name: 'Feature Card 1', props: {}, style: { gridColumn: 'span 1', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, border: '1px solid rgba(255,255,255,0.1)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', minHeight: 280, boxSizing: 'border-box' }, children: [], isExpanded: true, isLocked: false },
+                { type: 'container', name: 'Feature Card 2', props: {}, style: { gridColumn: 'span 1', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, border: '1px solid rgba(255,255,255,0.1)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', minHeight: 280, boxSizing: 'border-box' }, children: [], isExpanded: true, isLocked: false },
+                { type: 'container', name: 'Feature Card 3', props: {}, style: { gridColumn: 'span 1', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, border: '1px solid rgba(255,255,255,0.1)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', minHeight: 280, boxSizing: 'border-box' }, children: [], isExpanded: true, isLocked: false },
+                { type: 'container', name: 'Feature Card 4', props: {}, style: { gridColumn: 'span 1', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 24, border: '1px solid rgba(255,255,255,0.1)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', minHeight: 280, boxSizing: 'border-box' }, children: [], isExpanded: true, isLocked: false }
             ],
             isExpanded: true,
             isLocked: false

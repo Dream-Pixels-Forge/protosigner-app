@@ -5,6 +5,7 @@ import { UIElement, ProjectSettings, AIProvider, ExpertMode } from '../types';
 import { sleep, insertNodeIntoParent, updateElementRecursively } from './utils';
 import { Orchestrator } from '../features/ai/orchestrator';
 import { ensureImageSource } from './imageUtils';
+import { getLocalOptimizations, generateMinimalPrompt, LOCAL_MODEL_CONFIGS } from '../features/ai/LocalModelOptimizer';
 
 interface UseAIProps {
     elements: UIElement[];
@@ -20,6 +21,7 @@ interface UseAIProps {
     updateElementProps: (id: string, props: Partial<Record<string, any>>) => void;
     updateElementStyle: (id: string, style: Partial<NonNullable<UIElement['style']>>) => void;
     projectSettings: ProjectSettings;
+    updateProjectSettings: (settings: Partial<ProjectSettings>) => void;
     expertMode: ExpertMode;
 }
 
@@ -37,34 +39,87 @@ export const useAI = ({
     updateElementProps, 
     updateElementStyle,
     projectSettings,
+    updateProjectSettings,
     expertMode
 }: UseAIProps) => {
     const [isGenerating, setIsGenerating] = useState(false);
+    
+    // Hardware level for local model optimization (default: ultra-light)
+    // Use 'light' level by default for better template generation
+    const hardwareLevel = 'light';
 
     const buildUITree = async (parentId: string, nodes: any[]) => {
         const nodeList = Array.isArray(nodes) ? nodes : [nodes];
         
-        for (const node of nodeList) {
+        for (let i = 0; i < nodeList.length; i++) {
+            const node = nodeList[i];
             const newId = Math.random().toString(36).substr(2, 9);
-            const { type, name, props, style, children } = node;
             
-            // Force strict defaults for visibility
-            const safeStyle = {
-                boxSizing: 'border-box', // Crucial for 1:1 sizing
-                ...style,
+            // Apply fixes BEFORE destructuring - fix type and name first
+            const fixedNode = fixCommonIssues(node);
+            
+            const { type, name, props, style, children } = fixedNode;
+            
+            // INFER TYPE if still missing - analyze structure
+            let inferredType = type;
+            if (!inferredType || typeof inferredType !== 'string') {
+                if (props?.text || props?.label || props?.innerText) {
+                    inferredType = 'text';
+                } else if (props?.src && (props.src.includes('.jpg') || props.src.includes('.png') || props.src.includes('http'))) {
+                    inferredType = 'image';
+                } else if (props?.label && (props.label.length < 30)) {
+                    inferredType = 'button';
+                } else if (children && Array.isArray(children) && children.length > 0) {
+                    inferredType = 'container';
+                } else {
+                    inferredType = 'container';
+                }
+            }
+            
+            // Ensure name exists
+            const finalName = name || `AI Component ${i}`;
+            
+            // Force strict defaults for visibility - preserve AI's display (flex/grid) and layout properties
+            const containerTypes = ['section', 'container', 'box', 'frame', 'grid', 'page'];
+            const isContainer = containerTypes.includes(inferredType);
+            
+            // Start with AI response style
+            const baseStyle = { ...style } || {};
+            
+            // Apply defaults only for container elements without layout properties
+            const defaultStyle = {
+                boxSizing: 'border-box',
                 opacity: 0, 
                 transition: 'opacity 0.5s ease-out'
             };
+            
+            // For containers, ensure layout defaults if missing
+            if (isContainer) {
+                if (!baseStyle.display) baseStyle.display = 'flex';
+                if (baseStyle.display === 'flex') {
+                    if (!baseStyle.flexDirection) baseStyle.flexDirection = 'row';
+                    if (!baseStyle.alignItems) baseStyle.alignItems = 'center';
+                }
+                if (baseStyle.display === 'grid') {
+                    if (!baseStyle.gridTemplateColumns) {
+                        baseStyle.gridTemplateColumns = 'repeat(auto-fit, minmax(250px, 1fr))';
+                    }
+                    if (!baseStyle.gap) baseStyle.gap = 24;
+                }
+                if (!baseStyle.width) baseStyle.width = '100%';
+            }
+            
+            const safeStyle = { ...defaultStyle, ...baseStyle };
 
             // Ensure image elements have a source
-            const processedProps = type === 'image' && (!props || !props.src) 
+            const processedProps = inferredType === 'image' && (!props || !props.src) 
                 ? { ...props, src: `/assets/1 (${Math.floor(Math.random() * 10) + 1}).jpg`, alt: props?.alt || 'Image' }
-                : props || {};
+                : (props || {});
 
             const newElement: UIElement = {
                 id: newId, 
-                type: type || 'container', 
-                name: name || 'AI Component', 
+                type: inferredType as any, 
+                name: finalName, 
                 props: processedProps,
                 style: safeStyle, 
                 children: [], 
@@ -75,21 +130,22 @@ export const useAI = ({
             await sleep(80);
             setElements(prev => updateElementRecursively(prev, newId, (el) => ({ ...el, style: { ...el.style, opacity: 1 } })));
             
-            // Process children with image fallback
+            // Process children with image fallback - also fix them first
             if (children && children.length > 0) {
-                // Ensure all children images have sources
-                const processedChildren = children.map((child: any) => {
-                    if (child.type === 'image' && (!child.props || !child.props.src)) {
+                // Ensure all children images have sources and are fixed
+                const processedChildren = children.map((child: any, idx: number) => {
+                    const fixedChild = fixCommonIssues(child);
+                    if (fixedChild.type === 'image' && (!fixedChild.props || !fixedChild.props.src)) {
                         return {
-                            ...child,
+                            ...fixedChild,
                             props: {
-                                ...child.props,
+                                ...fixedChild.props,
                                 src: `/assets/1 (${Math.floor(Math.random() * 10) + 1}).jpg`,
-                                alt: child.props?.alt || 'Image'
+                                alt: fixedChild.props?.alt || 'Image'
                             }
                         };
                     }
-                    return child;
+                    return fixedChild;
                 });
                 await buildUITree(newId, processedChildren);
             }
@@ -167,6 +223,18 @@ export const useAI = ({
                 stream: false
             };
 
+            // OPTIMIZATION: Apply local model optimizations for Ollama
+            if (activeModelProvider === 'Ollama') {
+                const optimizations = getLocalOptimizations(hardwareLevel);
+                body.options = {
+                    temperature: optimizations.config.temperature,
+                    top_p: optimizations.config.topP,
+                    num_ctx: optimizations.config.numCtx,
+                    repeat_penalty: optimizations.config.repeatPenalty,
+                    num_predict: optimizations.config.maxTokens
+                };
+            }
+
             if (forceJson) {
                  if (activeModelProvider === 'Ollama') {
                      body.format = 'json';
@@ -183,7 +251,14 @@ export const useAI = ({
                 throw new Error(`AI Provider Error: ${err}`);
             }
             const data = await res.json();
-            return data.choices?.[0]?.message?.content || data.message?.content || '';
+            
+            // Debug: Log response structure
+            console.log("[QueryAI] Response keys:", Object.keys(data));
+            
+            const content = data.choices?.[0]?.message?.content || data.message?.content || '';
+            console.log("[QueryAI] Content:", content?.substring(0, 200)); // Log first 200 chars
+            console.log("[QueryAI] Content length:", content?.length || 0);
+            return content;
         }
     };
 
@@ -239,15 +314,43 @@ export const useAI = ({
 
     // --- AUTO-FIX COMMON ISSUES ---
     const fixCommonIssues = (data: any): any => {
-        const fixElement = (el: any): any => {
+        const fixElement = (el: any, index: number = 0): any => {
             const fixed = { ...el };
+            
+            // FIX: Add default 'type' if missing - infer from structure
+            if (!fixed.type) {
+                // Try to infer type from properties or structure
+                if (fixed.props?.text || fixed.props?.label) {
+                    fixed.type = 'text'; // Has text content
+                } else if (fixed.props?.src) {
+                    fixed.type = 'image'; // Has image source
+                } else if (fixed.children && Array.isArray(fixed.children) && fixed.children.length > 0) {
+                    fixed.type = 'container'; // Has children = container
+                } else if (fixed.style?.borderRadius && fixed.style?.width === fixed.style?.height) {
+                    fixed.type = 'circle';
+                } else {
+                    fixed.type = 'container'; // Default to container
+                }
+            }
+            
+            // FIX: Add default 'name' if missing
+            if (!fixed.name) {
+                fixed.name = `AI Element ${index}`;
+            }
             
             // Fix string pixels to numbers
             if (fixed.style) {
                 ['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight', 'fontSize', 'gap', 'padding', 'margin'].forEach(prop => {
-                    if (typeof fixed.style[prop] === 'string' && fixed.style[prop].includes('px')) {
-                        const num = parseInt(fixed.style[prop]);
-                        if (!isNaN(num)) fixed.style[prop] = num;
+                    if (fixed.style[prop]) {
+                        // Handle '100px' strings
+                        if (typeof fixed.style[prop] === 'string' && fixed.style[prop].includes('px')) {
+                            const num = parseInt(fixed.style[prop]);
+                            if (!isNaN(num)) fixed.style[prop] = num;
+                        }
+                        // Handle numeric strings like "100"
+                        else if (typeof fixed.style[prop] === 'string' && !isNaN(Number(fixed.style[prop]))) {
+                            fixed.style[prop] = Number(fixed.style[prop]);
+                        }
                     }
                 });
                 
@@ -257,18 +360,58 @@ export const useAI = ({
                 }
             }
             
+            // Ensure required fields for UIElement
+            if (!fixed.props) fixed.props = {};
+            if (!fixed.style) fixed.style = {};
+            if (fixed.children === undefined) fixed.children = [];
+            if (fixed.isExpanded === undefined) fixed.isExpanded = true;
+            if (fixed.isLocked === undefined) fixed.isLocked = false;
+            
+            // FIX: Ensure proper layout for container/section elements
+            const containerTypes = ['section', 'container', 'box', 'frame', 'grid', 'page'];
+            if (containerTypes.includes(fixed.type)) {
+                // Default to flex row if no display specified
+                if (!fixed.style.display) {
+                    fixed.style.display = 'flex';
+                }
+                // Add default flex properties if flex is used
+                if (fixed.style.display === 'flex') {
+                    if (!fixed.style.flexDirection) fixed.style.flexDirection = 'row';
+                    if (!fixed.style.alignItems) fixed.style.alignItems = 'center';
+                    if (!fixed.style.justifyContent) fixed.style.justifyContent = 'flex-start';
+                }
+                // Add default grid properties if grid is used
+                if (fixed.style.display === 'grid') {
+                    if (!fixed.style.gridTemplateColumns) {
+                        // Default to responsive grid
+                        fixed.style.gridTemplateColumns = 'repeat(auto-fit, minmax(250px, 1fr))';
+                    }
+                    if (!fixed.style.gap) fixed.style.gap = 24;
+                }
+                // Ensure width is set
+                if (!fixed.style.width) fixed.style.width = '100%';
+            }
+            
+            // FIX: Ensure children have proper positioning
+            if (fixed.children && fixed.children.length > 0 && fixed.style.display === 'flex') {
+                // If flex and has children, ensure gap is set for spacing
+                if (!fixed.style.gap && fixed.style.flexWrap !== 'wrap') {
+                    // Add default gap for better spacing
+                }
+            }
+            
             // Fix children recursively
             if (fixed.children && Array.isArray(fixed.children)) {
-                fixed.children = fixed.children.map(fixElement);
+                fixed.children = fixed.children.map((child: any, idx: number) => fixElement(child, idx));
             }
             
             return fixed;
         };
         
         if (Array.isArray(data)) {
-            return data.map(fixElement);
+            return data.map((el: any, idx: number) => fixElement(el, idx));
         }
-        return fixElement(data);
+        return fixElement(data, 0);
     };
 
     const generateContent = useCallback(async (prompt: string, targetId?: string, imageContext?: string, templateSkillId?: string, createNewPage: boolean = false) => {
@@ -435,57 +578,224 @@ export const useAI = ({
                         "layoutAdvice": "string (Strict CSS instructions. E.g. 'Use grid-template-columns: repeat(12, 1fr) with 24px gap. Main container max-width: 1200px.')"
                      }`;
 
-                     try {
-                         console.log("[GM] Consulting Grid Master...");
-                         const gmResponse = await queryAI(gmSystemPrompt, "Analyze and Plan.", undefined, true);
-                         const parsedGM = JSON.parse(gmResponse.replace(/```json/g, '').replace(/```/g, '').trim());
-                         
-                         if (parsedGM.agentId) gmPlan.agentId = parsedGM.agentId;
-                         if (parsedGM.skillId) gmPlan.skillId = parsedGM.skillId;
-                         if (parsedGM.layoutAdvice) gmPlan.layoutAdvice = parsedGM.layoutAdvice;
-                         
-                         console.log("[GM] Plan:", gmPlan);
-                     } catch (e) {
-                         console.warn("[GM] Planning failed, proceeding with defaults.", e);
-                     }
+                      try {
+                          console.log("[GM] Consulting Grid Master...");
+                          const gmResponse = await queryAI(gmSystemPrompt, "Analyze and Plan.", undefined, true);
+                          
+                          // Safe JSON parsing for GM response
+                          let parsedGM: any = {};
+                          try {
+                              const cleanGmJson = gmResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+                              parsedGM = JSON.parse(cleanGmJson);
+                          } catch (parseErr: any) {
+                              console.warn("[GM] Failed to parse GM response, using defaults:", parseErr.message);
+                              // Try to extract just the agentId using regex as fallback
+                              const agentMatch = gmResponse.match(/"agentId"\s*:\s*"([^"]+)"/);
+                              if (agentMatch) parsedGM.agentId = agentMatch[1];
+                          }
+                          
+                          if (parsedGM.agentId) gmPlan.agentId = parsedGM.agentId;
+                          if (parsedGM.skillId) gmPlan.skillId = parsedGM.skillId;
+                          if (parsedGM.layoutAdvice) gmPlan.layoutAdvice = parsedGM.layoutAdvice;
+                          
+                          console.log("[GM] Plan:", gmPlan);
+                          
+                          // ============================================================
+                          // AUTO-ADJUST PAGE SIZE BASED ON AGENT TYPE
+                          // ============================================================
+                          // If GM selects a device-specific agent, adjust page size automatically
+                          const agentId = gmPlan.agentId || parsedGM.agentId;
+                          
+                          if (agentId === 'hud' || agentId === 'mobile' || agentId === 'os' || agentId === 'dashboard') {
+                              // Define appropriate page sizes for different device types
+                              const devicePageSizes: Record<string, { width: number; height: number; name: string }> = {
+                                  // HUD / Sci-Fi interfaces - typically wider aspect ratio
+                                  'hud': { width: 1920, height: 1080, name: 'HUD Display' },
+                                  // Mobile - tall portrait ratio
+                                  'mobile': { width: 375, height: 812, name: 'Mobile Screen' },
+                                  // OS / Desktop - standard desktop ratio  
+                                  'os': { width: 1920, height: 1080, name: 'Desktop' },
+                                  // Dashboard - data-heavy, wider
+                                  'dashboard': { width: 1440, height: 900, name: 'Dashboard' }
+                              };
+                              
+                              const newSize = devicePageSizes[agentId];
+                              if (newSize && (projectSettings.pageSize.width !== newSize.width || projectSettings.pageSize.height !== newSize.height)) {
+                                  console.log(`[GM] Auto-adjusting page size for ${newSize.name}: ${newSize.width}x${newSize.height}`);
+                                  updateProjectSettings({
+                                      pageSize: { width: newSize.width, height: newSize.height },
+                                      viewportSize: { width: Math.min(newSize.width, 1200), height: Math.min(newSize.height, 800) }
+                                  });
+                                  
+                                  // Update layout advice to reflect new dimensions
+                                  gmPlan.layoutAdvice = `${newSize.name} optimized (${newSize.width}x${newSize.height}). ` + (gmPlan.layoutAdvice || '');
+                              }
+                          }
+                      } catch (e) {
+                          console.warn("[GM] Planning failed, proceeding with defaults.", e);
+                      }
                  } else {
                      console.log("[GM] Grid Master disabled. Using direct execution.");
                  }
 
-                 // ============================================================
-                 // STEP 2: ORCHESTRATED EXECUTION
-                 // ============================================================
-                 const systemInstruction = Orchestrator.generateSystemPrompt(
-                    gmPlan.agentId as ExpertMode, 
-                    projectSettings, 
-                    isLocal, 
-                    targetDimensions, 
-                    gmPlan.skillId,
-                    gmPlan.layoutAdvice // Inject GM's math (if available)
-                 );
-                 
-                 responseText = await queryAI(systemInstruction, `User Request: "${prompt}"`, imageContext, true);
+                  // ============================================================
+                  // STEP 2: ORCHESTRATED EXECUTION
+                  // ============================================================
+                  let systemInstruction: string;
+                  
+                  if (isLocal) {
+                    // ULTRA-OPTIMIZED for local models (Ollama)
+                    // Use minimal prompt to reduce token count and improve speed
+                    systemInstruction = generateMinimalPrompt(
+                      prompt,
+                      gmPlan.skillId,
+                      hardwareLevel
+                    );
+                    
+                    // Add GM layout advice if available (local models still benefit from layout math)
+                    if (gmPlan.layoutAdvice) {
+                      systemInstruction += `\n\nLayout: ${gmPlan.layoutAdvice}`;
+                    }
+                  } else {
+                    // Full prompt for cloud models
+                    systemInstruction = Orchestrator.generateSystemPrompt(
+                      gmPlan.agentId as ExpertMode, 
+                      projectSettings, 
+                      isLocal, 
+                      targetDimensions, 
+                      gmPlan.skillId,
+                      gmPlan.layoutAdvice // Inject GM's math (if available)
+                    );
+                  }
+                  
+                   console.log("[AI] Calling model with prompt...");
+                   
+                   try {
+                       responseText = await queryAI(systemInstruction, `User Request: "${prompt}"`, imageContext, true);
+                   } catch (queryErr: any) {
+                       console.error("[AI] Query failed:", queryErr.message);
+                       responseText = '';
+                   }
+                   
+                   console.log("[AI] Response received, length:", responseText?.length || 0);
 
-                  if (responseText) {
-                     try {
-                         const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-                         let parsed = JSON.parse(cleanJson);
-                         if (!Array.isArray(parsed) && parsed.children) parsed = [parsed];
-                         if (!Array.isArray(parsed) && parsed.type) parsed = [parsed];
-                         
-                         // VALIDATE RESPONSE
-                         const validation = validateAIResponse(parsed);
-                         if (!validation.valid) {
-                             console.error('[AI Validation Failed]', validation.errors);
-                             // Try to fix common issues
-                             parsed = fixCommonIssues(parsed);
-                         }
-                         
-                         await buildUITree(effectiveId, parsed);
-                     } catch (e) {
-                         console.error("Failed to parse AI response", e);
-                     }
-                 }
+                   if (responseText && responseText.length > 0) {
+                       try {
+                           // Clean and parse JSON
+                           let cleanJson = responseText
+                               .replace(/```json/g, '')
+                               .replace(/```/g, '')
+                               .replace(/^```/g, '')
+                               .replace(/```$/g, '')
+                               .trim();
+                           
+                           // Handle cases where AI wraps JSON in quotes
+                           if (cleanJson.startsWith('"') && cleanJson.endsWith('"')) {
+                               cleanJson = cleanJson.slice(1, -1);
+                               // Unescape JSON
+                               cleanJson = cleanJson.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                           }
+                           
+                           // FIX: Handle unterminated strings and incomplete JSON
+                           let parsed: any;
+                           try {
+                               parsed = JSON.parse(cleanJson);
+                           } catch (parseError: any) {
+                               // Try to fix unterminated strings by finding the last complete object
+                               console.warn('[AI] JSON parse issue, attempting to fix:', parseError.message);
+                               
+                               // Try to extract valid JSON array or object
+                               const lastBrace = cleanJson.lastIndexOf('}');
+                               const lastBracket = cleanJson.lastIndexOf(']');
+                               const lastComplete = Math.max(lastBrace, lastBracket);
+                               
+                               if (lastComplete > 0) {
+                                   const fixedJson = cleanJson.substring(0, lastComplete + 1);
+                                   try {
+                                       parsed = JSON.parse(fixedJson);
+                                       console.warn('[AI] Fixed incomplete JSON by trimming');
+                                   } catch {
+                                       // If that fails, try to find the first complete object in array
+                                       const arrayMatch = cleanJson.match(/\[[\s\S]*\{[\s\S]*\}[\s\S]*\]/);
+                                       if (arrayMatch) {
+                                           try {
+                                               parsed = JSON.parse(arrayMatch[0]);
+                                               console.warn('[AI] Extracted partial array from response');
+                                           } catch {
+                                               throw new Error('Unable to parse JSON');
+                                           }
+                                       } else {
+                                           throw new Error('Unable to fix incomplete JSON');
+                                       }
+                                   }
+                               } else {
+                                   throw new Error('Unable to parse JSON');
+                               }
+                           }
+                           
+                           // Handle various response formats
+                           if (!Array.isArray(parsed)) {
+                               if (parsed.children) {
+                                   parsed = [parsed];
+                               } else if (parsed.type) {
+                                   parsed = [parsed];
+                               } else if (parsed.elements) {
+                                   parsed = parsed.elements;
+                               } else if (parsed.result) {
+                                   parsed = parsed.result;
+                               } else {
+                                   // Wrap single object in array
+                                   parsed = [parsed];
+                               }
+                           }
+                           
+                           // Ensure we have an array
+                           if (!Array.isArray(parsed)) {
+                               parsed = [parsed];
+                           }
+                           
+                            // Apply fixes ALWAYS - don't log pre-fix validation (we know AI makes mistakes)
+                            const beforeFix = JSON.stringify(parsed).slice(0, 100);
+                            parsed = fixCommonIssues(parsed);
+                            const afterFix = JSON.stringify(parsed).slice(0, 100);
+                            
+                            // Debug: log if fix was applied
+                            if (beforeFix !== afterFix) {
+                                console.log('[AI] Applied auto-fixes to response');
+                            }
+                            
+                            // Only log if there are STILL issues after fixing
+                            const revalidation = validateAIResponse(parsed);
+                            if (!revalidation.valid) {
+                                console.warn('[AI] Some issues remain after auto-fix:', revalidation.errors);
+                            }
+                           
+                           await buildUITree(effectiveId, parsed);
+                       } catch (e: any) {
+                           console.warn("Failed to parse AI response:", e.message);
+                           // Try emergency fallback - create a simple container
+                          console.warn('[AI] Creating fallback element due to parse failure');
+                          const fallbackElement = [{
+                              type: 'container',
+                              name: 'AI Generated',
+                              props: {},
+                              style: { display: 'flex', width: 200, height: 100, padding: 20 },
+                              children: []
+                          }];
+                          await buildUITree(effectiveId, fallbackElement);
+                       }
+                  } else {
+                      // Empty response - create fallback element
+                      console.warn('[AI] Empty response from model, creating fallback');
+                      const fallbackElement = [{
+                          type: 'container',
+                          name: 'AI Generated',
+                          props: {},
+                          style: { display: 'flex', width: 200, height: 100, padding: 20 },
+                          children: []
+                      }];
+                      await buildUITree(effectiveId, fallbackElement);
+                  }
 
             } else {
                 // Leaf Node Update (Simple)
@@ -503,11 +813,11 @@ export const useAI = ({
                         const styleToUpdate = data.style;
                         if (propsToUpdate) updateElementProps(effectiveId, propsToUpdate);
                         if (styleToUpdate) updateElementStyle(effectiveId, styleToUpdate);
-                    } catch (e) { console.error("Failed to parse AI response", e); }
+                    } catch (e: any) { console.warn("Failed to parse AI response:", e.message); }
                 }
             }
-        } catch (e) { 
-            console.error("AI Generation failed", e); 
+        } catch (e: any) { 
+            console.warn("AI Generation failed:", e.message); 
         } finally { 
             setIsGenerating(false); 
         }
@@ -589,8 +899,8 @@ export const useAI = ({
                     });
                 });
             }
-        } catch (e) {
-            console.error("GM Refine failed", e);
+        } catch (e: any) {
+            console.warn("GM Refine failed:", e.message);
         } finally {
             setIsGenerating(false);
         }
@@ -627,7 +937,7 @@ export const useAI = ({
                 const styles = JSON.parse(cleanJson);
                 updateElementStyle(effectiveId, styles);
             }
-        } catch (e) { console.error("AI Style failed", e); } finally { setIsGenerating(false); }
+        } catch (e: any) { console.warn("AI Style failed:", e.message); } finally { setIsGenerating(false); }
     }, [queryAI, updateElementStyle, saveToHistory, selectedId, elements]);
 
     return { isGenerating, generateContent, generateStyles, refineSelectionLayout };
