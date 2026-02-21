@@ -117,19 +117,19 @@ export class Orchestrator {
     // MAIN METHOD: Get section prompts for generation
     // ============================================================
     static getSectionPrompts(config: OrchestratorConfig): SectionPrompt[] {
-        const { expertMode, projectSettings, isLocal, targetDimensions, requiredSkillId, layoutAdvice } = config;
-        
+        const { expertMode, isLocal, targetDimensions, requiredSkillId, layoutAdvice } = config;
+
         // Get agent
         const agent = AGENT_REGISTRY.find(a => a.id === expertMode) || AGENT_REGISTRY[0];
         const theme = AGENT_THEMES[expertMode] || AGENT_THEMES['landing'];
-        
+
         console.log(`[Orchestrator] Agent: ${agent.name}, Skill: ${requiredSkillId || 'none'}, Local: ${isLocal}`);
-        
+
         // If skill is selected, generate skill-specific sections
         if (requiredSkillId && requiredSkillId !== 'null') {
             return this.getSkillSections(agent.id, agent.name, theme, requiredSkillId, targetDimensions, isLocal);
         }
-        
+
         // Default: generate standard landing page sections
         return this.getStandardSections(agent.id, agent.name, theme, targetDimensions, layoutAdvice, isLocal);
     }
@@ -192,11 +192,11 @@ export class Orchestrator {
         agentName: string,
         theme: AgentTheme,
         dimensions: { width: number; height: number },
-        layoutAdvice: string | undefined,
+        _layoutAdvice: string | undefined,
         isLocal: boolean
     ): SectionPrompt[] {
         const { width, height } = dimensions;
-        
+
         return [
             { name: 'Page Background', instruction: this.buildPageBackgroundPrompt(agentName, theme, width, height, isLocal), agentId, agentName, isBackground: true },
             { name: 'Header/Nav', instruction: this.buildHeaderPrompt(agentName, theme, width, isLocal), agentId, agentName },
@@ -211,7 +211,7 @@ export class Orchestrator {
     // SECTION BUILDERS
     // ============================================================
     
-    private static buildPageBackgroundPrompt(agentName: string, theme: AgentTheme, width: number, height: number, isLocal: boolean): string {
+    private static buildPageBackgroundPrompt(agentName: string, theme: AgentTheme, width: number, height: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON object (not array). No text before or after.
@@ -235,7 +235,7 @@ RULES:
 `;
     }
     
-    private static buildHeaderPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+    private static buildHeaderPrompt(agentName: string, theme: AgentTheme, width: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -262,7 +262,7 @@ RULES:
 `;
     }
     
-    private static buildHeroPrompt(agentName: string, theme: AgentTheme, width: number, height: number, isLocal: boolean): string {
+    private static buildHeroPrompt(agentName: string, theme: AgentTheme, width: number, height: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -289,7 +289,7 @@ RULES:
 `;
     }
     
-    private static buildHeroSplitPrompt(agentName: string, theme: AgentTheme, width: number, height: number, isLocal: boolean): string {
+    private static buildHeroSplitPrompt(agentName: string, theme: AgentTheme, width: number, height: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -317,7 +317,7 @@ RULES:
 `;
     }
     
-    private static buildFeaturesPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+    private static buildFeaturesPrompt(agentName: string, theme: AgentTheme, width: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -345,7 +345,7 @@ RULES:
 `;
     }
     
-    private static buildBentoGridPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+    private static buildBentoGridPrompt(agentName: string, theme: AgentTheme, width: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -372,7 +372,7 @@ RULES:
 `;
     }
     
-    private static buildPricingPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+    private static buildPricingPrompt(agentName: string, theme: AgentTheme, width: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -400,7 +400,7 @@ RULES:
 `;
     }
     
-    private static buildCenterSplashPrompt(agentName: string, theme: AgentTheme, width: number, height: number, isLocal: boolean): string {
+    private static buildCenterSplashPrompt(agentName: string, theme: AgentTheme, width: number, height: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -426,7 +426,7 @@ RULES:
 `;
     }
     
-    private static buildModularGridPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+    private static buildModularGridPrompt(agentName: string, theme: AgentTheme, width: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -452,7 +452,7 @@ RULES:
 `;
     }
     
-    private static buildContentPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+    private static buildContentPrompt(agentName: string, theme: AgentTheme, width: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.
@@ -479,7 +479,7 @@ RULES:
 `;
     }
     
-    private static buildFooterPrompt(agentName: string, theme: AgentTheme, width: number, isLocal: boolean): string {
+    private static buildFooterPrompt(agentName: string, theme: AgentTheme, width: number, _isLocal: boolean): string {
         const t = theme;
         return `You are ${agentName}.
 OUTPUT: ONLY valid JSON array. No text before or after.

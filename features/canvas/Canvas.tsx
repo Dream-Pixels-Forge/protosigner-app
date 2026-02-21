@@ -261,7 +261,7 @@ export const Canvas: React.FC = () => {
                     ? '0 0 0 1px rgba(255,255,255,0.08), 0 0 0 2px rgba(255,255,255,0.04), 0 50px 100px -20px rgba(0,0,0,0.8), 0 0 60px rgba(0,0,0,0.4)'
                     : '0 0 0 1px rgba(0,0,0,0.08), 0 25px 50px -12px rgba(0,0,0,0.25)'
             }}
-            onMouseDown={(e) => {
+            onMouseDown={(_e) => {
                 if (activeTool === 'hand') return;
             }}
         >

@@ -47,7 +47,7 @@ export const NumberInput: React.FC<{
   min?: number;
   max?: number;
   placeholder?: string;
-}> = ({ label, icon, value, onChange, unit, step = 1, min, max, placeholder = "Auto" }) => (
+}> = ({ label, icon, value, onChange, unit, step = 1, min: _min, max: _max, placeholder = "Auto" }) => (
   <div className="flex-1 min-w-0">
     {label && <Label icon={icon}>{label}</Label>}
     <div className="relative group bg-black/20 border border-white/10 rounded flex items-center hover:border-white/20 focus-within:border-white/40 transition-colors">

@@ -1,9 +1,18 @@
 
 import React, { useState } from 'react';
 import { useEditor } from '../../context/EditorContext';
-import { AIModel, AppSettings, AIProvider } from '../../types';
+import { AIModel, AIProvider } from '../../types';
 import { Toggle } from '../../components/ui/Toggle';
 import { HardwareSettings } from './HardwareSettings';
+
+// Type guard for Vite's import.meta.env
+const isDev = () => {
+  try {
+    return (import.meta as any).env?.DEV ?? false;
+  } catch {
+    return false;
+  }
+};
 
 export const SettingsModal: React.FC = () => {
   const { 
@@ -37,7 +46,7 @@ export const SettingsModal: React.FC = () => {
     const fetchGoogleModels = async () => {
       if (!googleApiKey || modelSubTab !== 'Google') return;
       // Skip API call in development (serverless functions only work in production)
-      if (import.meta.env.DEV) return;
+      if (isDev()) return;
       
       try {
         const res = await fetch('/api/models');
@@ -91,7 +100,7 @@ export const SettingsModal: React.FC = () => {
   React.useEffect(() => {
     const fetchOpenRouterModels = async () => {
       // Skip API call in development (serverless functions only work in production)
-      if (import.meta.env.DEV) return;
+      if (isDev()) return;
       
       try {
         const res = await fetch('/api/openrouter-models');

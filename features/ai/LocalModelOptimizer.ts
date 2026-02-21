@@ -93,10 +93,8 @@ export const getTemplateStructure = (skillId: string): any => {
 export const generateMinimalPrompt = (
   request: string,
   skillId?: string | null,
-  hardwareLevel: string = 'light'
+  _hardwareLevel: string = 'light'
 ): string => {
-  const optimizations = getLocalOptimizations(hardwareLevel);
-  
   // More explicit JSON requirement
   let prompt = `You are a UI designer. Output ONLY valid JSON array. No explanations.\n`;
   prompt += `Output format: [{type,name,props,style,children}]\n`;
@@ -126,7 +124,7 @@ export const generateMinimalPrompt = (
 
 // Determine hardware level based on available info
 export const detectHardwareLevel = (
-  modelSize?: string,
+  _modelSize?: string,
   availableRam?: number
 ): string => {
   // If RAM is specified
@@ -136,7 +134,7 @@ export const detectHardwareLevel = (
     if (availableRam <= 8) return 'balanced';
     return 'quality';
   }
-  
+
   // Default to ultra-light for unknown hardware
   return 'ultra-light';
 };

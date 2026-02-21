@@ -1,5 +1,5 @@
 
-import { SubAgent, ExpertMode } from '../../types';
+import { SubAgent } from '../../types';
 
 export const AGENT_REGISTRY: SubAgent[] = [
     {

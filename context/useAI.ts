@@ -4,8 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 import { UIElement, ProjectSettings, AIProvider, ExpertMode } from '../types';
 import { sleep, insertNodeIntoParent, updateElementRecursively, normalizeStyleProperties } from './utils';
 import { Orchestrator } from '../features/ai/orchestrator';
-import { ensureImageSource } from './imageUtils';
-import { getLocalOptimizations, LOCAL_MODEL_CONFIGS } from '../features/ai/LocalModelOptimizer';
+import { getLocalOptimizations } from '../features/ai/LocalModelOptimizer';
 
 interface UseAIProps {
     elements: UIElement[];
@@ -82,9 +81,9 @@ export const useAI = ({
             // Force strict defaults for visibility - preserve AI's display (flex/grid) and layout properties
             const containerTypes = ['section', 'container', 'box', 'frame', 'grid', 'page'];
             const isContainer = containerTypes.includes(inferredType);
-            
+
             // Start with AI response style
-            const baseStyle = { ...style } || {};
+            const baseStyle = style ? { ...style } : {};
             
             // Apply defaults only for container elements without layout properties
             const defaultStyle = {
@@ -133,7 +132,7 @@ export const useAI = ({
             // Process children with image fallback - also fix them first
             if (children && children.length > 0) {
                 // Ensure all children images have sources and are fixed
-                const processedChildren = children.map((child: any, idx: number) => {
+                const processedChildren = children.map((child: any, _idx: number) => {
                     const fixedChild = fixCommonIssues(child);
                     if (fixedChild.type === 'image' && (!fixedChild.props || !fixedChild.props.src)) {
                         return {
@@ -818,11 +817,10 @@ export const useAI = ({
         try {
             // --- IMAGE GENERATION SHORTCUT ---
             if (targetEl.type === 'image' && !imageContext && activeModelProvider === 'Google') {
-                const responseText = await queryAI('', prompt, undefined, false); // Using raw text for images logic not implemented here fully, reusing existing flow
                 // Re-implementing image logic using direct Google call as it's specialized
                 const ai = new GoogleGenAI({ apiKey: googleApiKey });
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash-image', 
+                    model: 'gemini-2.5-flash-image',
                     contents: { parts: [{ text: prompt }] },
                     config: { imageConfig: { aspectRatio: "1:1" } }
                 });

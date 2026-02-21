@@ -8,8 +8,8 @@ interface DesignGuideOverlayProps {
   height: number;
 }
 
-export const DesignGuideOverlay: React.FC<DesignGuideOverlayProps> = ({ settings, width, height }) => {
-  const { showFold, foldPosition, showSafeZone, safeZoneWidth, showColumnGrid, columns, gap, color } = settings;
+export const DesignGuideOverlay: React.FC<DesignGuideOverlayProps> = ({ settings, width: _width, height: _height }) => {
+  const { showFold, foldPosition, showSafeZone, safeZoneWidth, showColumnGrid, columns, gap, color: _color } = settings;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-[60] overflow-hidden">

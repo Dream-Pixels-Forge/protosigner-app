@@ -1,5 +1,5 @@
 
-import { Skill, SkillElement } from '../../types';
+import { Skill } from '../../types';
 
 export const SKILL_REGISTRY: Skill[] = [
     {

@@ -1,14 +1,13 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { EditorContextType, UIElement, ProjectSettings, MCPStatus, ToolType, HistoryEntry, AppSettings, AIProvider, UserProfile, SettingsTab, ExpertMode, EnvironmentMode } from '../types';
+import { EditorContextType, UIElement, ProjectSettings, MCPStatus, ToolType, AppSettings, AIProvider, UserProfile, SettingsTab, ExpertMode, EnvironmentMode } from '../types';
 import { MCPClient } from '../services/MCPClient';
 import { initialElements, defaultSettings, defaultAppSettings } from './defaults';
-import { 
-    cloneElementWithNewIds, 
-    getAbsoluteRect, 
-    insertNodeIntoParent, 
-    updateElementRecursively, 
-    deleteFromList 
+import {
+    cloneElementWithNewIds,
+    insertNodeIntoParent,
+    updateElementRecursively,
+    deleteFromList
 } from './utils';
 import { useAI } from './useAI';
 import { useSpectralAgent } from '../features/ai/SpectralAgent'; // Import Agent Hook
@@ -202,19 +201,18 @@ export const EditorProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const jumpToFuture = useCallback((index: number) => {
     if (index < 0 || index >= future.length) return;
     const targetSnapshot = future[index];
-    
+
     const entriesToRestore = future.slice(0, index + 1); // These move to past
     const newFuture = future.slice(index + 1);
-    
+
     const currentSnapshot: HistorySnapshot = {
         id: Math.random().toString(36).substr(2, 9),
         elements: JSON.parse(JSON.stringify(elements)),
         projectSettings: JSON.parse(JSON.stringify(projectSettings)),
-        action: entriesToRestore[0].action, 
+        action: entriesToRestore[0].action,
         timestamp: Date.now()
     };
-    
-    const newPastItems = [currentSnapshot, ...entriesToRestore.slice(0, -1)]; 
+
     if (entriesToRestore.length === 1) {
          setPast(prev => [...prev, currentSnapshot]);
     } else {

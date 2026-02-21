@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useEditor } from '../../context/EditorContext';
-import { UIElement, ExpertMode } from '../../types';
+import { UIElement } from '../../types';
 import { AGENT_REGISTRY } from '../ai/agents';
 import { SKILL_REGISTRY } from '../ai/skills';
 import { getRandomPrompt } from '../ai/randomPrompts';

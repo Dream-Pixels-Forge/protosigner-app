@@ -249,9 +249,6 @@ ${jsx}
         ? '\n' + el.children.map(c => this.renderElement(c, indent + 2)).filter(s => s).join('\n') + `\n${spaces}`
         : content;
 
-    // Handle self-closing tags
-    const isSelfClosing = !el.children?.length && !content && tag !== 'div' && tag !== 'section'; // div usually not self closed in React convention preference though technically allowed
-
     if (tag === 'img' || tag === 'input' || tag === 'br' || tag === 'hr') {
         return `${spaces}<${tag}${className ? ` className="${className}"` : ''}${propsStr}${styleProp} />`;
     }

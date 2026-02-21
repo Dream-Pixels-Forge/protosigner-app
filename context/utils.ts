@@ -62,7 +62,7 @@ export const deleteFromList = (list: UIElement[], id: string): UIElement[] => {
 // This fixes React warnings about unsupported style properties
 export const normalizeStyleProperties = (style: React.CSSProperties | undefined): React.CSSProperties => {
     if (!style) return {};
-    
+
     const normalized: React.CSSProperties = {};
     const kebabToCamelMap: Record<string, string> = {
         'align-items': 'alignItems',
@@ -109,14 +109,14 @@ export const normalizeStyleProperties = (style: React.CSSProperties | undefined)
         'animation-timing-function': 'animationTimingFunction',
         'animation-fill-mode': 'animationFillMode'
     };
-    
+
     for (const [key, value] of Object.entries(style)) {
-        if (kebabToCamelMap[key]) {
-            normalized[kebabToCamelMap[key]] = value;
-        } else {
-            normalized[key] = value;
+        const styleKey = key as keyof React.CSSProperties;
+        const camelKey = kebabToCamelMap[key] || styleKey;
+        if (camelKey) {
+            (normalized as any)[camelKey] = value;
         }
     }
-    
+
     return normalized;
 };
