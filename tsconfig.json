@@ -41,5 +41,5 @@
     "noUncheckedIndexedAccess": false
   },
   "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist", "coverage"]
+  "exclude": ["node_modules", "dist", "coverage", "api"]
 }
