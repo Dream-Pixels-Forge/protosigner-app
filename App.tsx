@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { EditorProvider, useEditor } from './context/EditorContext';
 import { ConsoleLogProvider, useConsoleLog } from './context/ConsoleLogContext';
+import { AuthProvider } from './context/AuthContext';
+import { AppWrapper } from './context/AppWrapper';
 import { Header } from './features/layout/Header';
 import { LayersPanel } from './features/layers/LayersPanel';
 import { PropertiesPanel } from './features/properties/PropertiesPanel';
@@ -186,23 +188,27 @@ const App: React.FC = () => {
   }
 
   return (
-    <EditorProvider>
-      <ConsoleLogProvider>
-        <div className="h-full flex flex-col overflow-hidden bg-background-light dark:bg-canvas-dark animate-in fade-in duration-500">
-          <Header />
-          <div className="flex flex-1 overflow-hidden">
-            <LayersPanel />
-            <Canvas />
-            <PropertiesPanel />
-          </div>
-          <Footer />
-          <SettingsModal />
-          <CodeExportModal />
-          <ShortcutsModal />
-          <HistoryModal />
-        </div>
-      </ConsoleLogProvider>
-    </EditorProvider>
+    <AuthProvider>
+      <AppWrapper>
+        <EditorProvider>
+          <ConsoleLogProvider>
+            <div className="h-full flex flex-col overflow-hidden bg-background-light dark:bg-canvas-dark animate-in fade-in duration-500">
+              <Header />
+              <div className="flex flex-1 overflow-hidden">
+                <LayersPanel />
+                <Canvas />
+                <PropertiesPanel />
+              </div>
+              <Footer />
+              <SettingsModal />
+              <CodeExportModal />
+              <ShortcutsModal />
+              <HistoryModal />
+            </div>
+          </ConsoleLogProvider>
+        </EditorProvider>
+      </AppWrapper>
+    </AuthProvider>
   );
 };
 
