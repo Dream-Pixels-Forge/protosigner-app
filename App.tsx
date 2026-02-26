@@ -13,6 +13,7 @@ import { CodeExportModal } from './features/export/CodeExportModal';
 import { ShortcutsModal } from './features/help/ShortcutsModal';
 import { HistoryModal } from './features/history/HistoryModal';
 import { SplashScreen } from './features/layout/SplashScreen';
+import { Analytics } from '@vercel/analytics/react';
 
 // Separated Footer to consume Context
 const Footer: React.FC = () => {
@@ -205,6 +206,7 @@ const App: React.FC = () => {
               <ShortcutsModal />
               <HistoryModal />
             </div>
+            <Analytics />
           </ConsoleLogProvider>
         </EditorProvider>
       </AppWrapper>
